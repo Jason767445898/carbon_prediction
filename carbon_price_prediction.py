@@ -18,7 +18,7 @@
 # =============================================================================
 
 # 默认数据文件路径
-DEFAULT_DATA_FILE = 'carbon_price_prediction_test_data.xlsx'
+DEFAULT_DATA_FILE = 'carbon_price_data_from4.xlsx'
 SAMPLE_DATA_FILE = 'carbon_price_prediction_test_data.xlsx'
 
 # 输出目录配置
