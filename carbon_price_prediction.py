@@ -23,7 +23,7 @@
 # =============================================================================
 
 # 默认数据文件路径
-DEFAULT_DATA_FILE = 'carbon_price_data_from4.xlsx'
+DEFAULT_DATA_FILE = 'data.dta'
 SAMPLE_DATA_FILE = 'carbon_price_prediction_test_data.xlsx'
 
 # 输出目录配置
@@ -491,9 +491,26 @@ class CarbonPricePredictionSystem:
         for lag in [1, 2, 3, 5, 10]:
             df[f'{target_col}_lag_{lag}'] = df[target_col].shift(lag)
         
-        # 移除无效值
+        # 移除无效值（但保留尽可能多的数据）
         df = df.replace([np.inf, -np.inf], np.nan)
-        df = df.dropna()
+        
+        # 检查预处理前后的数据量
+        original_shape = df.shape
+        print(f"预处理前数据形状: {original_shape}")
+        
+        # 只移除完全为空的行
+        df = df.dropna(how='all')
+        
+        # 检查预处理后的数据量
+        processed_shape = df.shape
+        print(f"预处理后数据形状: {processed_shape}")
+        
+        if processed_shape[0] == 0:
+            print("警告: 预处理后数据为空，将尝试保留更多数据")
+            # 回退到原始数据并只移除完全为空的行
+            df = self.data.copy()
+            df = df.dropna(how='all')
+            print(f"回退后数据形状: {df.shape}")
         
         # 选择特征列
         exclude_cols = [target_col, 'price_return', 'price_diff']
@@ -504,7 +521,9 @@ class CarbonPricePredictionSystem:
         
         print(f"预处理完成，数据形状: {df.shape}")
         print(f"特征数量: {len(feature_cols)}")
-        print(f"特征列表: {feature_cols}")
+        # 只显示前10个特征以避免输出过长
+        display_features = feature_cols[:10] + (['...'] if len(feature_cols) > 10 else [])
+        print(f"特征列表: {display_features}")
         
         return df
     
@@ -734,8 +753,16 @@ class CarbonPricePredictionSystem:
         # 分割数据
         train_data, val_data, test_data = self.split_data()
         
+        # 检查数据是否足够
+        if len(train_data) == 0:
+            raise ValueError("训练数据为空，请检查数据源或减少序列长度")
+        
         target_col = self.config['target_column']
         seq_length = self.config['sequence_length']
+        
+        # 检查序列长度是否合理
+        if seq_length >= len(train_data):
+            raise ValueError(f"序列长度({seq_length})必须小于训练数据长度({len(train_data)})")
         
         # 准备序列数据
         X_seq_train, y_seq_train = self.prepare_sequences(
@@ -748,34 +775,79 @@ class CarbonPricePredictionSystem:
             test_data, target_col, self.feature_names, seq_length
         )
         
+        # 检查序列数据是否为空
+        if len(X_seq_train) == 0:
+            raise ValueError(f"训练序列数据为空，请检查数据或减小序列长度。当前序列长度: {seq_length}, 训练数据长度: {len(train_data)}")
+        
         # 准备机器学习数据
         X_ml_train = train_data[self.feature_names].values
         y_ml_train = train_data[target_col].values
         X_ml_test = test_data[self.feature_names].values
         y_ml_test = test_data[target_col].values
         
-        # 数据标准化
-        scaler_features = StandardScaler()
-        scaler_target = StandardScaler()
+        # 检查并处理NaN值
+        # 对于序列数据
+        if np.isnan(X_seq_train).any() or np.isnan(y_seq_train).any():
+            print("警告: 序列训练数据中发现NaN值，将使用前向填充和后向填充处理")
+            # 对于X_seq_train，我们需要特殊处理，因为它是一个3D数组
+            original_shape = X_seq_train.shape
+            X_seq_train_2d = X_seq_train.reshape(-1, original_shape[-1])
+            # 使用pandas处理NaN值
+            X_seq_train_df = pd.DataFrame(X_seq_train_2d)
+            X_seq_train_df = X_seq_train_df.fillna(method='ffill').fillna(method='bfill').fillna(0)
+            X_seq_train = X_seq_train_df.values.reshape(original_shape)
+            
+            # 处理y_seq_train
+            y_seq_train_series = pd.Series(y_seq_train)
+            y_seq_train = y_seq_train_series.fillna(method='ffill').fillna(method='bfill').fillna(0).values
+            
+        if np.isnan(X_seq_test).any() or np.isnan(y_seq_test).any():
+            print("警告: 序列测试数据中发现NaN值，将使用前向填充和后向填充处理")
+            # 对于X_seq_test
+            original_shape = X_seq_test.shape
+            X_seq_test_2d = X_seq_test.reshape(-1, original_shape[-1])
+            X_seq_test_df = pd.DataFrame(X_seq_test_2d)
+            X_seq_test_df = X_seq_test_df.fillna(method='ffill').fillna(method='bfill').fillna(0)
+            X_seq_test = X_seq_test_df.values.reshape(original_shape)
+            
+            # 处理y_seq_test
+            y_seq_test_series = pd.Series(y_seq_test)
+            y_seq_test = y_seq_test_series.fillna(method='ffill').fillna(method='bfill').fillna(0).values
         
-        X_seq_train_scaled = scaler_features.fit_transform(
-            X_seq_train.reshape(-1, X_seq_train.shape[-1])
-        ).reshape(X_seq_train.shape)
-        X_seq_val_scaled = scaler_features.transform(
-            X_seq_val.reshape(-1, X_seq_val.shape[-1])
-        ).reshape(X_seq_val.shape)
-        X_seq_test_scaled = scaler_features.transform(
-            X_seq_test.reshape(-1, X_seq_test.shape[-1])
-        ).reshape(X_seq_test.shape)
+        # 对于机器学习数据
+        if np.isnan(X_ml_train).any() or np.isnan(y_ml_train).any():
+            print("警告: ML训练数据中发现NaN值，将使用前向填充和后向填充处理")
+            # 处理X_ml_train
+            X_ml_train_df = pd.DataFrame(X_ml_train)
+            X_ml_train_df = X_ml_train_df.fillna(method='ffill').fillna(method='bfill').fillna(0)
+            X_ml_train = X_ml_train_df.values
+            
+            # 处理y_ml_train
+            y_ml_train_series = pd.Series(y_ml_train)
+            y_ml_train = y_ml_train_series.fillna(method='ffill').fillna(method='bfill').fillna(0).values
+            
+        if np.isnan(X_ml_test).any() or np.isnan(y_ml_test).any():
+            print("警告: ML测试数据中发现NaN值，将使用前向填充和后向填充处理")
+            # 处理X_ml_test
+            X_ml_test_df = pd.DataFrame(X_ml_test)
+            X_ml_test_df = X_ml_test_df.fillna(method='ffill').fillna(method='bfill').fillna(0)
+            X_ml_test = X_ml_test_df.values
+            
+            # 处理y_ml_test
+            y_ml_test_series = pd.Series(y_ml_test)
+            y_ml_test = y_ml_test_series.fillna(method='ffill').fillna(method='bfill').fillna(0).values
         
-        y_seq_train_scaled = scaler_target.fit_transform(y_seq_train.reshape(-1, 1)).flatten()
-        y_seq_val_scaled = scaler_target.transform(y_seq_val.reshape(-1, 1)).flatten()
+        # 不进行数据标准化，直接使用原始数据
+        X_seq_train_scaled = X_seq_train
+        y_seq_train_scaled = y_seq_train
+        X_seq_val_scaled = X_seq_val
+        y_seq_val_scaled = y_seq_val
+        X_seq_test_scaled = X_seq_test
+        y_seq_test_scaled = y_seq_test
         
-        # 保存缩放器
-        self.scalers = {
-            'features': scaler_features,
-            'target': scaler_target
-        }
+        # ML数据也不进行标准化
+        X_ml_train_scaled = X_ml_train
+        X_ml_test_scaled = X_ml_test
         
         # 训练LSTM模型
         print("\n训练LSTM模型...")
@@ -788,10 +860,10 @@ class CarbonPricePredictionSystem:
             batch_size=self.config['lstm_config']['batch_size'],
             verbose=1,
             callbacks=[
-                keras.callbacks.EarlyStopping(
+                tf.keras.callbacks.EarlyStopping(
                     patience=10, restore_best_weights=True
                 ),
-                keras.callbacks.ReduceLROnPlateau(
+                tf.keras.callbacks.ReduceLROnPlateau(
                     patience=5, factor=0.5
                 )
             ]
@@ -808,7 +880,7 @@ class CarbonPricePredictionSystem:
             batch_size=32,
             verbose=1,
             callbacks=[
-                keras.callbacks.EarlyStopping(
+                tf.keras.callbacks.EarlyStopping(
                     patience=10, restore_best_weights=True
                 )
             ]
@@ -818,12 +890,7 @@ class CarbonPricePredictionSystem:
         print("\n训练机器学习模型...")
         ml_models = self.build_ml_models()
         
-        # 对ML模型的特征进行标准化
-        scaler_ml = StandardScaler()
-        X_ml_train_scaled = scaler_ml.fit_transform(X_ml_train)
-        X_ml_test_scaled = scaler_ml.transform(X_ml_test)
-        self.scalers['ml_features'] = scaler_ml
-        
+        # 不进行标准化，直接使用原始数据
         for name, model in ml_models.items():
             print(f"训练 {name}...")
             model.fit(X_ml_train_scaled, y_ml_train)
@@ -873,14 +940,14 @@ class CarbonPricePredictionSystem:
                 model = self.models[model_name]
                 
                 # 预测
-                y_pred_scaled = model.predict(
+                y_pred = model.predict(
                     self.train_data['X_seq_test'], verbose=0
                 )
                 
-                # 反标准化
-                y_pred = self.scalers['target'].inverse_transform(
-                    y_pred_scaled.reshape(-1, 1)
-                ).flatten()
+                # 不进行反标准化，直接使用预测结果
+                # y_pred = self.scalers['target'].inverse_transform(
+                #     y_pred_scaled.reshape(-1, 1)
+                # ).flatten()
                 y_true = self.train_data['y_seq_test']
                 
                 # 计算指标
