@@ -177,3 +177,309 @@
     Direction_Accuracy: 49.7992
 备注: LSTM配置测试 4
 --------------------------------------------------
+调优时间: 2025-10-14 00:08:11
+配置参数:
+  LSTM配置: {'units': [64, 32], 'dropout': 0.2, 'epochs': 150, 'batch_size': 32}
+  Transformer配置: {'d_model': 128, 'num_heads': 8, 'num_layers': 4, 'dff': 512, 'dropout': 0.1, 'epochs': 50}
+模型性能:
+  lstm:
+    MSE: 891981.5000
+    MAE: 938.7389
+    RMSE: 944.4477
+    R²: -82.0707
+    MAPE: 99.6049
+    Direction_Accuracy: 36.5667
+  transformer:
+    MSE: 887798.3750
+    MAE: 936.5120
+    RMSE: 942.2305
+    R²: -81.6812
+    MAPE: 99.3657
+    Direction_Accuracy: 36.3316
+  RandomForest:
+    MSE: 1831.6038
+    MAE: 32.3380
+    RMSE: 42.7972
+    R²: 0.9370
+    MAPE: 3.0868
+    Direction_Accuracy: 58.2329
+  GradientBoosting:
+    MSE: 3628.7913
+    MAE: 42.3046
+    RMSE: 60.2394
+    R²: 0.8752
+    MAPE: 3.9700
+    Direction_Accuracy: 55.8233
+  XGBoost:
+    MSE: 9924.2637
+    MAE: 59.2078
+    RMSE: 99.6206
+    R²: 0.6587
+    MAPE: 5.0092
+    Direction_Accuracy: 49.7992
+备注: LSTM配置测试 5
+--------------------------------------------------
+调优时间: 2025-10-14 00:11:46
+配置参数:
+  LSTM配置: {'units': [64, 32], 'dropout': 0.2, 'epochs': 100, 'batch_size': 32}
+  Transformer配置: {'d_model': 128, 'num_heads': 8, 'num_layers': 4, 'dff': 512, 'dropout': 0.1, 'epochs': 50}
+模型性能:
+  lstm:
+    MSE: 891184.0000
+    MAE: 938.3212
+    RMSE: 944.0255
+    R²: -81.9965
+    MAPE: 99.5600
+    Direction_Accuracy: 34.6855
+  transformer:
+    MSE: 890199.5625
+    MAE: 937.7914
+    RMSE: 943.5038
+    R²: -81.9048
+    MAPE: 99.5031
+    Direction_Accuracy: 36.2532
+  RandomForest:
+    MSE: 1831.6038
+    MAE: 32.3380
+    RMSE: 42.7972
+    R²: 0.9370
+    MAPE: 3.0868
+    Direction_Accuracy: 58.2329
+  GradientBoosting:
+    MSE: 3628.7913
+    MAE: 42.3046
+    RMSE: 60.2394
+    R²: 0.8752
+    MAPE: 3.9700
+    Direction_Accuracy: 55.8233
+  XGBoost:
+    MSE: 9924.2637
+    MAE: 59.2078
+    RMSE: 99.6206
+    R²: 0.6587
+    MAPE: 5.0092
+    Direction_Accuracy: 49.7992
+备注: Transformer配置测试 1
+--------------------------------------------------
+调优时间: 2025-10-14 00:20:26
+配置参数:
+  LSTM配置: {'units': [64, 32], 'dropout': 0.2, 'epochs': 100, 'batch_size': 32}
+  Transformer配置: {'d_model': 256, 'num_heads': 8, 'num_layers': 4, 'dff': 512, 'dropout': 0.1, 'epochs': 50}
+模型性能:
+  lstm:
+    MSE: 890667.6250
+    MAE: 938.0442
+    RMSE: 943.7519
+    R²: -81.9484
+    MAPE: 99.5303
+    Direction_Accuracy: 37.6641
+  transformer:
+    MSE: 881864.7500
+    MAE: 933.3166
+    RMSE: 939.0765
+    R²: -81.1286
+    MAPE: 99.0226
+    Direction_Accuracy: 36.6451
+  RandomForest:
+    MSE: 1831.6038
+    MAE: 32.3380
+    RMSE: 42.7972
+    R²: 0.9370
+    MAPE: 3.0868
+    Direction_Accuracy: 58.2329
+  GradientBoosting:
+    MSE: 3628.7913
+    MAE: 42.3046
+    RMSE: 60.2394
+    R²: 0.8752
+    MAPE: 3.9700
+    Direction_Accuracy: 55.8233
+  XGBoost:
+    MSE: 9924.2637
+    MAE: 59.2078
+    RMSE: 99.6206
+    R²: 0.6587
+    MAPE: 5.0092
+    Direction_Accuracy: 49.7992
+备注: Transformer配置测试 2
+--------------------------------------------------
+调优时间: 2025-10-14 00:26:48
+配置参数:
+  LSTM配置: {'units': [64, 32], 'dropout': 0.2, 'epochs': 100, 'batch_size': 32}
+  Transformer配置: {'d_model': 128, 'num_heads': 16, 'num_layers': 4, 'dff': 512, 'dropout': 0.1, 'epochs': 50}
+模型性能:
+  lstm:
+    MSE: 890828.9375
+    MAE: 938.1292
+    RMSE: 943.8373
+    R²: -81.9634
+    MAPE: 99.5394
+    Direction_Accuracy: 37.7425
+  transformer:
+    MSE: 887216.2500
+    MAE: 936.1882
+    RMSE: 941.9216
+    R²: -81.6270
+    MAPE: 99.3309
+    Direction_Accuracy: 36.0964
+  RandomForest:
+    MSE: 1831.6038
+    MAE: 32.3380
+    RMSE: 42.7972
+    R²: 0.9370
+    MAPE: 3.0868
+    Direction_Accuracy: 58.2329
+  GradientBoosting:
+    MSE: 3628.7913
+    MAE: 42.3046
+    RMSE: 60.2394
+    R²: 0.8752
+    MAPE: 3.9700
+    Direction_Accuracy: 55.8233
+  XGBoost:
+    MSE: 9924.2637
+    MAE: 59.2078
+    RMSE: 99.6206
+    R²: 0.6587
+    MAPE: 5.0092
+    Direction_Accuracy: 49.7992
+备注: Transformer配置测试 3
+--------------------------------------------------
+调优时间: 2025-10-14 00:32:10
+配置参数:
+  LSTM配置: {'units': [64, 32], 'dropout': 0.2, 'epochs': 100, 'batch_size': 32}
+  Transformer配置: {'d_model': 128, 'num_heads': 8, 'num_layers': 6, 'dff': 512, 'dropout': 0.1, 'epochs': 50}
+模型性能:
+  lstm:
+    MSE: 891291.3750
+    MAE: 938.3795
+    RMSE: 944.0823
+    R²: -82.0065
+    MAPE: 99.5663
+    Direction_Accuracy: 36.3316
+  transformer:
+    MSE: 886870.0625
+    MAE: 936.0084
+    RMSE: 941.7378
+    R²: -81.5947
+    MAPE: 99.3116
+    Direction_Accuracy: 36.4100
+  RandomForest:
+    MSE: 1831.6038
+    MAE: 32.3380
+    RMSE: 42.7972
+    R²: 0.9370
+    MAPE: 3.0868
+    Direction_Accuracy: 58.2329
+  GradientBoosting:
+    MSE: 3628.7913
+    MAE: 42.3046
+    RMSE: 60.2394
+    R²: 0.8752
+    MAPE: 3.9700
+    Direction_Accuracy: 55.8233
+  XGBoost:
+    MSE: 9924.2637
+    MAE: 59.2078
+    RMSE: 99.6206
+    R²: 0.6587
+    MAPE: 5.0092
+    Direction_Accuracy: 49.7992
+备注: Transformer配置测试 4
+--------------------------------------------------
+调优时间: 2025-10-14 00:35:56
+配置参数:
+  LSTM配置: {'units': [64, 32], 'dropout': 0.2, 'epochs': 100, 'batch_size': 32}
+  Transformer配置: {'d_model': 128, 'num_heads': 8, 'num_layers': 4, 'dff': 512, 'dropout': 0.2, 'epochs': 50}
+模型性能:
+  lstm:
+    MSE: 892316.0625
+    MAE: 938.9241
+    RMSE: 944.6248
+    R²: -82.1019
+    MAPE: 99.6248
+    Direction_Accuracy: 38.2912
+  transformer:
+    MSE: 891956.4375
+    MAE: 938.7086
+    RMSE: 944.4344
+    R²: -82.0684
+    MAPE: 99.6016
+    Direction_Accuracy: 36.0180
+  RandomForest:
+    MSE: 1831.6038
+    MAE: 32.3380
+    RMSE: 42.7972
+    R²: 0.9370
+    MAPE: 3.0868
+    Direction_Accuracy: 58.2329
+  GradientBoosting:
+    MSE: 3628.7913
+    MAE: 42.3046
+    RMSE: 60.2394
+    R²: 0.8752
+    MAPE: 3.9700
+    Direction_Accuracy: 55.8233
+  XGBoost:
+    MSE: 9924.2637
+    MAE: 59.2078
+    RMSE: 99.6206
+    R²: 0.6587
+    MAPE: 5.0092
+    Direction_Accuracy: 49.7992
+备注: Transformer配置测试 5
+--------------------------------------------------
+调优时间: 2025-10-14 00:40:01
+配置参数:
+  LSTM配置: {'units': [64, 32], 'dropout': 0.2, 'epochs': 100, 'batch_size': 32}
+  Transformer配置: {'d_model': 128, 'num_heads': 8, 'num_layers': 4, 'dff': 512, 'dropout': 0.1, 'epochs': 100}
+模型性能:
+  lstm:
+    MSE: 891866.3750
+    MAE: 938.6832
+    RMSE: 944.3868
+    R²: -82.0600
+    MAPE: 99.5989
+    Direction_Accuracy: 36.3316
+  transformer:
+    MSE: 888531.5625
+    MAE: 936.9047
+    RMSE: 942.6195
+    R²: -81.7494
+    MAPE: 99.4079
+    Direction_Accuracy: 36.8019
+  RandomForest:
+    MSE: 1831.6038
+    MAE: 32.3380
+    RMSE: 42.7972
+    R²: 0.9370
+    MAPE: 3.0868
+    Direction_Accuracy: 58.2329
+  GradientBoosting:
+    MSE: 3628.7913
+    MAE: 42.3046
+    RMSE: 60.2394
+    R²: 0.8752
+    MAPE: 3.9700
+    Direction_Accuracy: 55.8233
+  XGBoost:
+    MSE: 9924.2637
+    MAE: 59.2078
+    RMSE: 99.6206
+    R²: 0.6587
+    MAPE: 5.0092
+    Direction_Accuracy: 49.7992
+备注: Transformer配置测试 6
+--------------------------------------------------
+最终调优结果:
+=============
+最佳LSTM配置: {'units': [128, 64, 32], 'dropout': 0.2, 'epochs': 100, 'batch_size': 32}
+  R²: -81.0868
+  RMSE: 938.8376
+
+最佳Transformer配置: {'d_model': 256, 'num_heads': 8, 'num_layers': 4, 'dff': 512, 'dropout': 0.1, 'epochs': 50}
+  R²: -81.1286
+  RMSE: 939.0765
+
+调优结束时间: 2025-10-14 00:40:01
+==========================================
