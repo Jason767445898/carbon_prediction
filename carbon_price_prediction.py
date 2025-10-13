@@ -5,12 +5,17 @@
 整合LSTM、Transformer Attention和SHAP可解释性分析
 
 主要功能：
-1. 从Excel文件加载碳价格和相关因子数据
+1. 从Excel、CSV或Stata文件加载碳价格和相关因子数据
 2. 使用LSTM和Transformer模型进行时间序列预测
 3. 通过SHAP分析模型决策的可解释性
 4. 输出预测结果、准确度评估和解释性分析报告
 
-使用说明：详见《碳价格预测系统使用指南.md》
+支持的文件格式：
+- Excel文件 (.xlsx, .xls)
+- CSV文件 (.csv)
+- Stata文件 (.dta)
+
+使用说明：详见《碳价格预测系统使用指南.md》和《STATA_USAGE_GUIDE.md》
 """
 
 # =============================================================================
@@ -69,6 +74,17 @@ import warnings
 warnings.filterwarnings('ignore')
 import os
 from datetime import datetime
+
+# 检查pandas版本是否支持Stata文件读取
+try:
+    import pandas as pd
+    # 检查是否支持read_stata
+    PANDAS_STATA_SUPPORT = hasattr(pd, 'read_stata')
+    if not PANDAS_STATA_SUPPORT:
+        print("⚠️ 当前pandas版本不支持读取Stata文件")
+except ImportError:
+    PANDAS_STATA_SUPPORT = False
+    print("⚠️ pandas不可用，将无法读取Stata文件")
 
 # 机器学习和深度学习
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
@@ -258,8 +274,27 @@ class CarbonPricePredictionSystem:
                     self.data = excel_data
             elif file_path.endswith('.csv'):
                 self.data = pd.read_csv(file_path, index_col=0, parse_dates=True)
+            elif file_path.endswith('.dta'):
+                # 读取Stata文件
+                if PANDAS_STATA_SUPPORT:
+                    # 使用pandas读取Stata文件
+                    stata_data = pd.read_stata(file_path)
+                    # 确保数据是DataFrame类型
+                    if isinstance(stata_data, pd.DataFrame):
+                        self.data = stata_data
+                    else:
+                        self.data = pd.DataFrame(stata_data)
+                    # 设置第一列为索引（日期）并解析为日期类型
+                    if not isinstance(self.data.index, pd.DatetimeIndex) and len(self.data.columns) > 0:
+                        # 假设第一列是日期列
+                        date_col = self.data.columns[0]
+                        self.data[date_col] = pd.to_datetime(self.data[date_col], errors='coerce')
+                        self.data.set_index(date_col, inplace=True)
+                    print(f"成功读取Stata文件: {file_path}")
+                else:
+                    raise ValueError("当前pandas版本不支持读取Stata文件")
             else:
-                raise ValueError("支持的文件格式: .xlsx, .xls, .csv")
+                raise ValueError("支持的文件格式: .xlsx, .xls, .csv, .dta")
             
             print(f"数据加载成功，形状: {self.data.shape}")
             print(f"数据列: {list(self.data.columns)}")

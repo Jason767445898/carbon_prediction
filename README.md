@@ -77,12 +77,16 @@ system.run_complete_analysis('your_data.xlsx')
 
 ### 数据准备清单
 
-- ✅ 文件格式：`.xlsx` 或 `.csv`
+- ✅ 文件格式：`.xlsx`、`.csv` 或 `.dta` (Stata文件)
 - ✅ 时间列：连续的日期数据
 - ✅ 目标列：碳价格数据
 - ✅ 特征列：相关影响因子（建议5-15个）
 - ✅ 数据量：建议至少500个数据点
 - ✅ 数据质量：缺失值 < 5%
+
+### Stata文件支持
+
+系统现在支持Stata (.dta) 文件格式。有关如何使用Stata文件的详细信息，请参阅 [STATA_USAGE_GUIDE.md](./STATA_USAGE_GUIDE.md)。
 
 ## 📈 输出结果
 
