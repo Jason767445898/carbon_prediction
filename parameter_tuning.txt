@@ -1,0 +1,53 @@
+==========================================
+碳价格预测模型参数调优记录
+==========================================
+调优开始时间: 2025-10-13 23:49:43
+
+调优目标:
+- 提升LSTM和Transformer模型的预测性能
+- 优化超参数配置
+- 记录调优过程和结果
+
+==========================================
+调优时间: 2025-10-13 23:53:21
+配置参数:
+  LSTM配置: {'units': [64, 32], 'dropout': 0.2, 'epochs': 100, 'batch_size': 32}
+  Transformer配置: {'d_model': 128, 'num_heads': 8, 'num_layers': 4, 'dff': 512, 'dropout': 0.1, 'epochs': 50}
+模型性能:
+  lstm:
+    MSE: 892121.1250
+    MAE: 938.8199
+    RMSE: 944.5217
+    R²: -82.0837
+    MAPE: 99.6136
+    Direction_Accuracy: 37.3506
+  transformer:
+    MSE: 889266.0000
+    MAE: 937.2820
+    RMSE: 943.0090
+    R²: -81.8178
+    MAPE: 99.4484
+    Direction_Accuracy: 36.0180
+  RandomForest:
+    MSE: 1831.6038
+    MAE: 32.3380
+    RMSE: 42.7972
+    R²: 0.9370
+    MAPE: 3.0868
+    Direction_Accuracy: 58.2329
+  GradientBoosting:
+    MSE: 3628.7913
+    MAE: 42.3046
+    RMSE: 60.2394
+    R²: 0.8752
+    MAPE: 3.9700
+    Direction_Accuracy: 55.8233
+  XGBoost:
+    MSE: 9924.2637
+    MAE: 59.2078
+    RMSE: 99.6206
+    R²: 0.6587
+    MAPE: 5.0092
+    Direction_Accuracy: 49.7992
+备注: LSTM配置测试 1
+--------------------------------------------------
