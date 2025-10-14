@@ -747,3 +747,87 @@
     Direction_Accuracy: 51.8072
 备注: LSTM配置测试 6
 --------------------------------------------------
+调优时间: 2025-10-14 21:23:04
+配置参数:
+  LSTM配置: {'units': [128, 64, 32], 'dropout': 0.15, 'epochs': 120, 'batch_size': 16}
+  Transformer配置: {'d_model': 128, 'num_heads': 8, 'num_layers': 4, 'dff': 512, 'dropout': 0.1, 'epochs': 50}
+模型性能:
+  lstm:
+    MSE: 6724.4092
+    MAE: 66.8542
+    RMSE: 82.0025
+    R²: 0.3738
+    MAPE: 7.0057
+    Direction_Accuracy: 41.2698
+  transformer:
+    MSE: 58508.9258
+    MAE: 229.0873
+    RMSE: 241.8862
+    R²: -4.4490
+    MAPE: 24.9014
+    Direction_Accuracy: 38.0952
+  RandomForest:
+    MSE: 1655.8951
+    MAE: 29.5799
+    RMSE: 40.6927
+    R²: 0.9430
+    MAPE: 2.8099
+    Direction_Accuracy: 58.6345
+  GradientBoosting:
+    MSE: 3615.6760
+    MAE: 42.0619
+    RMSE: 60.1305
+    R²: 0.8756
+    MAPE: 3.9405
+    Direction_Accuracy: 58.6345
+  XGBoost:
+    MSE: 9876.8926
+    MAE: 58.9860
+    RMSE: 99.3826
+    R²: 0.6603
+    MAPE: 4.9909
+    Direction_Accuracy: 51.8072
+备注: LSTM配置测试 7
+--------------------------------------------------
+调优时间: 2025-10-14 21:28:06
+配置参数:
+  LSTM配置: {'units': [128, 64], 'dropout': 0.1, 'epochs': 120, 'batch_size': 16}
+  Transformer配置: {'d_model': 128, 'num_heads': 8, 'num_layers': 4, 'dff': 512, 'dropout': 0.1, 'epochs': 50}
+模型性能:
+  lstm:
+    MSE: 1550.3005
+    MAE: 29.7021
+    RMSE: 39.3739
+    R²: 0.8556
+    MAPE: 3.1109
+    Direction_Accuracy: 44.4444
+  transformer:
+    MSE: 71973.0234
+    MAE: 224.8869
+    RMSE: 268.2779
+    R²: -5.7029
+    MAPE: 23.9551
+    Direction_Accuracy: 38.0952
+  RandomForest:
+    MSE: 1655.8951
+    MAE: 29.5799
+    RMSE: 40.6927
+    R²: 0.9430
+    MAPE: 2.8099
+    Direction_Accuracy: 58.6345
+  GradientBoosting:
+    MSE: 3615.6760
+    MAE: 42.0619
+    RMSE: 60.1305
+    R²: 0.8756
+    MAPE: 3.9405
+    Direction_Accuracy: 58.6345
+  XGBoost:
+    MSE: 9876.8926
+    MAE: 58.9860
+    RMSE: 99.3826
+    R²: 0.6603
+    MAPE: 4.9909
+    Direction_Accuracy: 51.8072
+备注: LSTM配置测试 8
+--------------------------------------------------
