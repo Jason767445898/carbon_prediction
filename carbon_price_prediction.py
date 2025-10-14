@@ -244,10 +244,10 @@ class CarbonPricePredictionSystem:
                 'units': [64, 32],
                 'dropout': 0.2,
                 'epochs': 100,
-                'batch_size': 32
+                'batch_size': 16
             },
             'transformer_config': {
-                'd_model': 128,
+                'd_model': 256,
                 'num_heads': 8,
                 'num_layers': 4,
                 'dff': 512,
