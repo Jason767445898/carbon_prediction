@@ -705,3 +705,45 @@
     Direction_Accuracy: 51.8072
 备注: LSTM配置测试 5
 --------------------------------------------------
+调优时间: 2025-10-14 21:17:42
+配置参数:
+  LSTM配置: {'units': [64, 32], 'dropout': 0.2, 'epochs': 100, 'batch_size': 8}
+  Transformer配置: {'d_model': 128, 'num_heads': 8, 'num_layers': 4, 'dff': 512, 'dropout': 0.1, 'epochs': 50}
+模型性能:
+  lstm:
+    MSE: 1322.6663
+    MAE: 25.8227
+    RMSE: 36.3685
+    R²: 0.8768
+    MAPE: 2.6818
+    Direction_Accuracy: 48.1481
+  transformer:
+    MSE: 16328.4238
+    MAE: 103.2717
+    RMSE: 127.7827
+    R²: -0.5207
+    MAPE: 11.0931
+    Direction_Accuracy: 37.0370
+  RandomForest:
+    MSE: 1655.8951
+    MAE: 29.5799
+    RMSE: 40.6927
+    R²: 0.9430
+    MAPE: 2.8099
+    Direction_Accuracy: 58.6345
+  GradientBoosting:
+    MSE: 3615.6760
+    MAE: 42.0619
+    RMSE: 60.1305
+    R²: 0.8756
+    MAPE: 3.9405
+    Direction_Accuracy: 58.6345
+  XGBoost:
+    MSE: 9876.8926
+    MAE: 58.9860
+    RMSE: 99.3826
+    R²: 0.6603
+    MAPE: 4.9909
+    Direction_Accuracy: 51.8072
+备注: LSTM配置测试 6
+--------------------------------------------------
