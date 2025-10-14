@@ -22,25 +22,28 @@ def create_tuning_log():
     """创建参数调优日志文件"""
     log_content = [
         "=" * 70,
-        "碳价格预测模型参数调优记录 v2.0（改进数据预处理）",
+        "碳价格预测模型参数调优记录 v3.0（第三轮优化）",
         "=" * 70,
         f"调优开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         "",
-        "🔧 数据预处理改进:",
-        "- 自动移除全为NaN的列（var9, var10）",
-        "- 使用多层插值方法：线性、多项式、样条、时间序列",
-        "- 避免使用0填充，提高数据质量",
+        "📊 第二轮最佳结果:",
+        "- LSTM: R²=0.8768, RMSE=36.37, batch_size=8",
+        "- Transformer: 仍然严重过拟合(R²=-0.9251)",
         "",
-        "🎯 调优目标:",
-        "- LSTM: 在R²=0.6778基础上继续提升至R²>0.75",
-        "- Transformer: 解决过拟合问题，至少达到R²>0",
-        "- 找到最优的超参数配置",
+        "🎯 第三轮优化目标:",
+        "- LSTM: 在R²=0.8768基础上突破至R²>0.90，接近RandomForest(0.943)",
+        "- Transformer: 采用激进简化策略，目标达到R²>0.3",
+        "- 探索更小batch_size和网络结构优化",
+        "",
+        "🔧 优化策略:",
+        "- LSTM: 微调dropout、epochs、网络宽度",
+        "- Transformer: 极简网络(d_model=16-32, 1层), 极高dropout(0.5-0.6)",
         "",
         "=" * 70,
         ""
     ]
     
-    log_file = 'parameter_tuning_v2.txt'
+    log_file = 'parameter_tuning_v3.txt'
     with open(log_file, 'w', encoding='utf-8') as f:
         f.write('\n'.join(log_content))
     
@@ -95,71 +98,103 @@ def tune_lstm_parameters(log_file):
         }
     }
     
-    # LSTM参数组合 - 基于batch_size=16的最佳结果优化
+    # LSTM参数组合 - 基于batch_size=8的最佳结果(R²=0.8768)进一步优化
     lstm_configs = [
         # 1. 最佳基线配置
         {
             'units': [64, 32],
             'dropout': 0.2,
             'epochs': 100,
-            'batch_size': 16,
-            'name': '基线配置(batch_size=16)'
+            'batch_size': 8,
+            'name': '最佳基线(batch=8,R²=0.8768)'
         },
-        # 2. 更小batch_size
+        # 2. 降低dropout提高拟合能力
         {
             'units': [64, 32],
-            'dropout': 0.2,
+            'dropout': 0.15,
             'epochs': 100,
             'batch_size': 8,
-            'name': '更小batch_size=8'
+            'name': 'batch=8,dropout=0.15'
         },
-        # 3. 降低dropout
+        # 3. 进一步降低dropout
         {
             'units': [64, 32],
             'dropout': 0.1,
             'epochs': 100,
-            'batch_size': 16,
-            'name': '降低dropout至0.1'
+            'batch_size': 8,
+            'name': 'batch=8,dropout=0.1'
         },
-        # 4. 增加网络宽度
-        {
-            'units': [128, 64],
-            'dropout': 0.2,
-            'epochs': 100,
-            'batch_size': 16,
-            'name': '增加网络宽度'
-        },
-        # 5. 增加网络深度
-        {
-            'units': [96, 64, 32],
-            'dropout': 0.2,
-            'epochs': 100,
-            'batch_size': 16,
-            'name': '增加网络深度'
-        },
-        # 6. 更多训练轮数
+        # 4. 增加训练轮数
         {
             'units': [64, 32],
             'dropout': 0.2,
             'epochs': 150,
-            'batch_size': 16,
-            'name': '增加训练轮数至150'
+            'batch_size': 8,
+            'name': 'batch=8,epochs=150'
         },
-        # 7. 组合优化：小batch + 低dropout
+        # 5. 增加网络宽度
+        {
+            'units': [96, 48],
+            'dropout': 0.2,
+            'epochs': 100,
+            'batch_size': 8,
+            'name': 'batch=8,units=[96,48]'
+        },
+        # 6. 更宽的网络
+        {
+            'units': [128, 64],
+            'dropout': 0.2,
+            'epochs': 100,
+            'batch_size': 8,
+            'name': 'batch=8,units=[128,64]'
+        },
+        # 7. 三层网络
+        {
+            'units': [96, 64, 32],
+            'dropout': 0.2,
+            'epochs': 100,
+            'batch_size': 8,
+            'name': 'batch=8,3层网络'
+        },
+        # 8. 组合优化：低dropout+更多epochs
         {
             'units': [64, 32],
             'dropout': 0.15,
+            'epochs': 150,
+            'batch_size': 8,
+            'name': 'batch=8,dropout=0.15,epochs=150'
+        },
+        # 9. 组合优化：宽网络+低dropout
+        {
+            'units': [96, 48],
+            'dropout': 0.15,
             'epochs': 120,
             'batch_size': 8,
-            'name': '小batch+低dropout'
+            'name': 'batch=8,宽网络+低dropout'
         },
-        # 8. 组合优化：宽网络 + 小batch
+        # 10. 尝试更小的batch_size
         {
-            'units': [128, 64],
-            'dropout': 0.15,
+            'units': [64, 32],
+            'dropout': 0.2,
+            'epochs': 120,
+            'batch_size': 4,
+            'name': 'batch=4,极小批次'
+        },
+        # 11. 平衡配置
+        {
+            'units': [80, 40],
+            'dropout': 0.18,
+            'epochs': 120,
+            'batch_size': 8,
+            'name': 'batch=8,平衡配置'
+        },
+        # 12. 深度网络
+        {
+            'units': [128, 96, 64, 32],
+            'dropout': 0.2,
             'epochs': 100,
             'batch_size': 8,
-            'name': '宽网络+小batch'
+            'name': 'batch=8,4层深度网络'
         }
     ]
     
@@ -226,57 +261,88 @@ def tune_transformer_parameters(log_file):
         }
     }
     
-    # Transformer参数组合 - 简化模型防止过拟合
+    # Transformer参数组合 - 激进简化策略，解决严重过拟合问题
     transformer_configs = [
-        # 1. 超轻量级配置
+        # 1. 极简单层配置 + 极高dropout
+        {
+            'd_model': 16,
+            'num_heads': 2,
+            'num_layers': 1,
+            'dff': 64,
+            'dropout': 0.6,
+            'epochs': 100,
+            'name': '极简单层(d=16,dropout=0.6)'
+        },
+        # 2. 超轻量级 + 高dropout
         {
             'd_model': 32,
             'num_heads': 2,
             'num_layers': 1,
             'dff': 128,
-            'dropout': 0.3,
-            'epochs': 80,
-            'name': '超轻量级(1层)'
-        },
-        # 2. 轻量级配置
-        {
-            'd_model': 64,
-            'num_heads': 4,
-            'num_layers': 2,
-            'dff': 256,
-            'dropout': 0.3,
-            'epochs': 50,
-            'name': '轻量级(2层)'
-        },
-        # 3. 高正则化
-        {
-            'd_model': 64,
-            'num_heads': 4,
-            'num_layers': 2,
-            'dff': 256,
             'dropout': 0.5,
-            'epochs': 50,
-            'name': '高dropout(0.5)'
+            'epochs': 120,
+            'name': '超轻量级(d=32,dropout=0.5)'
         },
-        # 4. 平衡配置
+        # 3. 单层 + 更多训练
         {
-            'd_model': 96,
-            'num_heads': 4,
-            'num_layers': 2,
-            'dff': 384,
-            'dropout': 0.3,
-            'epochs': 60,
-            'name': '平衡配置'
+            'd_model': 24,
+            'num_heads': 2,
+            'num_layers': 1,
+            'dff': 96,
+            'dropout': 0.5,
+            'epochs': 150,
+            'name': '单层长训练(d=24,epochs=150)'
         },
-        # 5. 更多训练轮数
+        # 4. 最小可行配置
         {
-            'd_model': 64,
+            'd_model': 16,
             'num_heads': 4,
-            'num_layers': 2,
-            'dff': 256,
-            'dropout': 0.3,
+            'num_layers': 1,
+            'dff': 64,
+            'dropout': 0.5,
             'epochs': 100,
-            'name': '更多epochs(100)'
+            'name': '最小可行(d=16,4heads)'
+        },
+        # 5. 小batch_size训练
+        {
+            'd_model': 32,
+            'num_heads': 2,
+            'num_layers': 1,
+            'dff': 128,
+            'dropout': 0.5,
+            'epochs': 100,
+            'batch_size': 8,
+            'name': '超轻量级+小batch(batch=8)'
+        },
+        # 6. 两层极简配置
+        {
+            'd_model': 16,
+            'num_heads': 2,
+            'num_layers': 2,
+            'dff': 64,
+            'dropout': 0.6,
+            'epochs': 100,
+            'name': '两层极简(d=16,dropout=0.6)'
+        },
+        # 7. 平衡轻量级
+        {
+            'd_model': 32,
+            'num_heads': 4,
+            'num_layers': 1,
+            'dff': 128,
+            'dropout': 0.4,
+            'epochs': 120,
+            'name': '平衡轻量级(d=32,dropout=0.4)'
+        },
+        # 8. 更小维度 + 更多heads
+        {
+            'd_model': 24,
+            'num_heads': 4,
+            'num_layers': 1,
+            'dff': 96,
+            'dropout': 0.5,
+            'epochs': 100,
+            'name': '小维度多heads(d=24,4heads)'
         }
     ]
     
@@ -326,12 +392,14 @@ def tune_transformer_parameters(log_file):
 def main():
     """主函数"""
     print("\n" + "=" * 70)
-    print("🚀 碳价格预测模型参数调优 v2.0")
+    print("🚀 碳价格预测模型参数调优 v3.0 - 第三轮优化")
     print("=" * 70)
-    print("\n🔧 数据预处理改进:")
-    print("   ✅ 移除全为NaN的无效列")
-    print("   ✅ 使用多层插值方法替代0填充")
-    print("   ✅ 提高数据质量和模型性能")
+    print("\n📊 第二轮最佳结果:")
+    print("   🏆 LSTM: R²=0.8768, RMSE=36.37 (batch_size=8)")
+    print("   ❌ Transformer: R²=-0.9251 (严重过拟合)")
+    print("\n🎯 第三轮目标:")
+    print("   ✅ LSTM: R²>0.90, 接近RandomForest(0.943)")
+    print("   ✅ Transformer: R²>0.3 (激进简化策略)")
     
     # 创建调优日志
     log_file = create_tuning_log()
@@ -349,7 +417,7 @@ def main():
     
     final_log = [
         "\n" + "=" * 70,
-        "最终调优结果（使用改进的数据预处理）",
+        "第三轮调优最终结果",
         "=" * 70,
         ""
     ]

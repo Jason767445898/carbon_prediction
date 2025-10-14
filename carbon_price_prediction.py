@@ -252,7 +252,8 @@ class CarbonPricePredictionSystem:
                 'num_layers': 4,
                 'dff': 512,
                 'dropout': 0.1,
-                'epochs': 50
+                'epochs': 50,
+                'batch_size': 16
             }
         }
     
@@ -987,7 +988,7 @@ class CarbonPricePredictionSystem:
             X_seq_train_scaled, y_seq_train_scaled,
             validation_data=(X_seq_val_scaled, y_seq_val_scaled),
             epochs=self.config['transformer_config']['epochs'],
-            batch_size=32,
+            batch_size=self.config['transformer_config'].get('batch_size', 32),
             verbose=1,
             callbacks=[
                 tf.keras.callbacks.EarlyStopping(
