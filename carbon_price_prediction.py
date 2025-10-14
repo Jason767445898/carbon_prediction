@@ -211,10 +211,10 @@ class CarbonPricePredictionSystem:
         - units: 隐藏层单元数 [64, 32]
         - dropout: 随机失活率 0.2
         - epochs: 训练轮数 100
-        - batch_size: 批次大小 32
+        - batch_size: 批次大小 16
         
         transformer_config: Transformer模型配置
-        - d_model: 模型维度 128
+        - d_model: 模型维度 256
         - num_heads: 注意力头数 8
         - num_layers: 编码器层数 4
         - dff: 前馈网络维度 512
@@ -1216,7 +1216,7 @@ class CarbonPricePredictionSystem:
                 
                 ax = axes[i]
                 bars = ax.bar(models, values, alpha=0.7)
-                ax.set_title(f'{metric} 对比', fontsize=14, fontweight='bold')
+                ax.set_title(f'{metric} Comparison', fontsize=14, fontweight='bold')
                 ax.set_ylabel(metric)
                 ax.tick_params(axis='x', rotation=45)
                 
@@ -1258,12 +1258,12 @@ class CarbonPricePredictionSystem:
                 actual = actual[-200:]
                 predicted = predicted[-200:]
             
-            ax.plot(actual, label='实际值', linewidth=2, alpha=0.8)
-            ax.plot(predicted, label='预测值', linewidth=2, alpha=0.8)
+            ax.plot(actual, label='Actual', linewidth=2, alpha=0.8)
+            ax.plot(predicted, label='Predicted', linewidth=2, alpha=0.8)
             
-            ax.set_title(f'{model_name} 预测结果', fontsize=14, fontweight='bold')
-            ax.set_xlabel('时间步')
-            ax.set_ylabel('碳价格')
+            ax.set_title(f'{model_name} Prediction Results', fontsize=14, fontweight='bold')
+            ax.set_xlabel('Time Steps')
+            ax.set_ylabel('Carbon Price')
             ax.legend()
             ax.grid(True, alpha=0.3)
             
@@ -1290,7 +1290,7 @@ class CarbonPricePredictionSystem:
         plt.figure(figsize=(12, 8))
         shap.summary_plot(shap_vals, X_test, feature_names=self.feature_names, 
                          show=False)
-        plt.title('SHAP特征重要性总结图', fontsize=16, fontweight='bold')
+        plt.title('SHAP Feature Importance Summary', fontsize=16, fontweight='bold')
         plt.tight_layout()
         pic_file = os.path.join(save_dir, f'{self.run_name}_shap_summary_plot.png')
         plt.savefig(pic_file, dpi=300, bbox_inches='tight')
@@ -1300,7 +1300,7 @@ class CarbonPricePredictionSystem:
         plt.figure(figsize=(10, 8))
         shap.summary_plot(shap_vals, X_test, feature_names=self.feature_names,
                          plot_type="bar", show=False)
-        plt.title('SHAP特征重要性条形图', fontsize=16, fontweight='bold')
+        plt.title('SHAP Feature Importance Bar Chart', fontsize=16, fontweight='bold')
         plt.tight_layout()
         pic_file = os.path.join(save_dir, f'{self.run_name}_shap_bar_plot.png')
         plt.savefig(pic_file, dpi=300, bbox_inches='tight')
@@ -1320,7 +1320,7 @@ class CarbonPricePredictionSystem:
                 shap.dependence_plot(feature_idx, shap_vals, X_test,
                                    feature_names=self.feature_names, 
                                    show=False)
-                axes[i].set_title(f'{feature} 依赖图', fontsize=12, fontweight='bold')
+                axes[i].set_title(f'{feature} Dependence Plot', fontsize=12, fontweight='bold')
         
         plt.tight_layout()
         pic_file = os.path.join(save_dir, f'{self.run_name}_shap_dependence_plots.png')
@@ -1338,17 +1338,17 @@ class CarbonPricePredictionSystem:
         if 'lstm' in self.train_history:
             history = self.train_history['lstm']
             
-            axes[0, 0].plot(history.history['loss'], label='训练损失')
-            axes[0, 0].plot(history.history['val_loss'], label='验证损失')
-            axes[0, 0].set_title('LSTM损失曲线')
+            axes[0, 0].plot(history.history['loss'], label='Training Loss')
+            axes[0, 0].plot(history.history['val_loss'], label='Validation Loss')
+            axes[0, 0].set_title('LSTM Loss Curve')
             axes[0, 0].set_xlabel('Epoch')
             axes[0, 0].set_ylabel('Loss')
             axes[0, 0].legend()
             axes[0, 0].grid(True, alpha=0.3)
             
-            axes[0, 1].plot(history.history['mae'], label='训练MAE')
-            axes[0, 1].plot(history.history['val_mae'], label='验证MAE')
-            axes[0, 1].set_title('LSTM MAE曲线')
+            axes[0, 1].plot(history.history['mae'], label='Training MAE')
+            axes[0, 1].plot(history.history['val_mae'], label='Validation MAE')
+            axes[0, 1].set_title('LSTM MAE Curve')
             axes[0, 1].set_xlabel('Epoch')
             axes[0, 1].set_ylabel('MAE')
             axes[0, 1].legend()
@@ -1358,17 +1358,17 @@ class CarbonPricePredictionSystem:
         if 'transformer' in self.train_history:
             history = self.train_history['transformer']
             
-            axes[1, 0].plot(history.history['loss'], label='训练损失')
-            axes[1, 0].plot(history.history['val_loss'], label='验证损失')
-            axes[1, 0].set_title('Transformer损失曲线')
+            axes[1, 0].plot(history.history['loss'], label='Training Loss')
+            axes[1, 0].plot(history.history['val_loss'], label='Validation Loss')
+            axes[1, 0].set_title('Transformer Loss Curve')
             axes[1, 0].set_xlabel('Epoch')
             axes[1, 0].set_ylabel('Loss')
             axes[1, 0].legend()
             axes[1, 0].grid(True, alpha=0.3)
             
-            axes[1, 1].plot(history.history['mae'], label='训练MAE')
-            axes[1, 1].plot(history.history['val_mae'], label='验证MAE')
-            axes[1, 1].set_title('Transformer MAE曲线')
+            axes[1, 1].plot(history.history['mae'], label='Training MAE')
+            axes[1, 1].plot(history.history['val_mae'], label='Validation MAE')
+            axes[1, 1].set_title('Transformer MAE Curve')
             axes[1, 1].set_xlabel('Epoch')
             axes[1, 1].set_ylabel('MAE')
             axes[1, 1].legend()
