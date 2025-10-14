@@ -43,7 +43,7 @@ def create_tuning_log():
         ""
     ]
     
-    log_file = 'parameter_tuning_v3.txt'
+    log_file = 'parameter_tuning_v2.txt'
     with open(log_file, 'w', encoding='utf-8') as f:
         f.write('\n'.join(log_content))
     
