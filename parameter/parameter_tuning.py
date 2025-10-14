@@ -65,101 +65,210 @@ def log_tuning_result(config, results, notes=""):
     
     print("已记录调优结果到 parameter_tuning.txt")
 
-def tune_lstm_parameters():
-    """调优LSTM模型参数"""
-    print("开始调优LSTM模型参数...")
+def tune_joint_parameters():
+    """联合调优LSTM和Transformer模型参数"""
+    print("开始联合调优LSTM和Transformer模型参数...")
+    print("✨ 优化策略: 每次实验同时训练两个模型，共10轮测试\n")
     
     # 基础配置
     base_config = {
         'target_column': 'coal_price',
         'sequence_length': 60,
         'test_size': 0.2,
-        'validation_size': 0.1,
-        'transformer_config': {
-            'd_model': 128,
-            'num_heads': 8,
-            'num_layers': 4,
-            'dff': 512,
-            'dropout': 0.1,
-            'epochs': 50
-        }
+        'validation_size': 0.1
     }
     
-    # LSTM参数组合 - 第四轮优化配置
-    lstm_configs = [
-        # 组1: 基线强化 (配置1-3)
-        # 配置1: 延长训练轮数
+    # 联合参数配置 - 第四轮优化 (10组配置)
+    joint_configs = [
+        # 配置1: 基线强化 - 延长训练轮数
         {
-            'units': [64, 32],
-            'dropout': 0.2,
-            'epochs': 150,
-            'batch_size': 8
+            'lstm': {
+                'units': [64, 32],
+                'dropout': 0.2,
+                'epochs': 150,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 16,
+                'num_heads': 2,
+                'num_layers': 1,
+                'dff': 64,
+                'dropout': 0.6,
+                'epochs': 100,
+                'batch_size': 8
+            },
+            'name': '基线强化-延长训练'
         },
-        # 配置2: 降低dropout，增强拟合
+        # 配置2: 基线强化 - 降低dropout
         {
-            'units': [64, 32],
-            'dropout': 0.15,
-            'epochs': 150,
-            'batch_size': 8
+            'lstm': {
+                'units': [64, 32],
+                'dropout': 0.15,
+                'epochs': 150,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 24,
+                'num_heads': 2,
+                'num_layers': 1,
+                'dff': 96,
+                'dropout': 0.5,
+                'epochs': 120,
+                'batch_size': 8
+            },
+            'name': '基线强化-降低dropout'
         },
-        # 配置3: 进一步降低dropout
+        # 配置3: 基线强化 - 最小dropout
         {
-            'units': [64, 32],
-            'dropout': 0.10,
-            'epochs': 150,
-            'batch_size': 8
+            'lstm': {
+                'units': [64, 32],
+                'dropout': 0.10,
+                'epochs': 150,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 32,
+                'num_heads': 2,
+                'num_layers': 1,
+                'dff': 128,
+                'dropout': 0.5,
+                'epochs': 150,
+                'batch_size': 8
+            },
+            'name': '基线强化-最小dropout'
         },
-        # 组2: 网络容量优化 (配置4-5)
-        # 配置4: 增加宽度
+        # 配置4: 网络容量 - 增加宽度
         {
-            'units': [96, 48],
-            'dropout': 0.2,
-            'epochs': 120,
-            'batch_size': 8
+            'lstm': {
+                'units': [96, 48],
+                'dropout': 0.2,
+                'epochs': 120,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 32,
+                'num_heads': 4,
+                'num_layers': 1,
+                'dff': 128,
+                'dropout': 0.5,
+                'epochs': 100,
+                'batch_size': 8
+            },
+            'name': '网络容量-增加宽度'
         },
-        # 配置5: 增加深度
+        # 配置5: 网络容量 - 增加深度
         {
-            'units': [96, 64, 32],
-            'dropout': 0.2,
-            'epochs': 120,
-            'batch_size': 8
+            'lstm': {
+                'units': [96, 64, 32],
+                'dropout': 0.2,
+                'epochs': 120,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 16,
+                'num_heads': 2,
+                'num_layers': 2,
+                'dff': 64,
+                'dropout': 0.6,
+                'epochs': 100,
+                'batch_size': 8
+            },
+            'name': '网络容量-增加深度'
         },
-        # 组3: 组合优化 (配置6-8)
-        # 配置6: 宽网络+低dropout
+        # 配置6: 组合优化 - 宽网络+低dropout
         {
-            'units': [96, 48],
-            'dropout': 0.15,
-            'epochs': 150,
-            'batch_size': 8
+            'lstm': {
+                'units': [96, 48],
+                'dropout': 0.15,
+                'epochs': 150,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 24,
+                'num_heads': 4,
+                'num_layers': 1,
+                'dff': 96,
+                'dropout': 0.4,
+                'epochs': 120,
+                'batch_size': 8
+            },
+            'name': '组合优化-宽网络+低dropout'
         },
-        # 配置7: 极小batch size
+        # 配置7: 组合优化 - 极小batch size
         {
-            'units': [64, 32],
-            'dropout': 0.2,
-            'epochs': 150,
-            'batch_size': 4
+            'lstm': {
+                'units': [64, 32],
+                'dropout': 0.2,
+                'epochs': 150,
+                'batch_size': 4
+            },
+            'transformer': {
+                'd_model': 32,
+                'num_heads': 2,
+                'num_layers': 1,
+                'dff': 128,
+                'dropout': 0.5,
+                'epochs': 120,
+                'batch_size': 4
+            },
+            'name': '组合优化-极小batch_size'
         },
-        # 配置8: 大网络+高正则
+        # 配置8: 组合优化 - 大网络+高正则
         {
-            'units': [128, 64],
-            'dropout': 0.25,
-            'epochs': 120,
-            'batch_size': 8
+            'lstm': {
+                'units': [128, 64],
+                'dropout': 0.25,
+                'epochs': 120,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 48,
+                'num_heads': 4,
+                'num_layers': 1,
+                'dff': 192,
+                'dropout': 0.4,
+                'epochs': 100,
+                'batch_size': 8
+            },
+            'name': '组合优化-大网络+高正则'
         },
-        # 组4: 精细调优 (配置9-10)
-        # 配置9: 在最优区间微调
+        # 配置9: 精细调优 - 微调参数组1
         {
-            'units': [80, 40],
-            'dropout': 0.18,
-            'epochs': 140,
-            'batch_size': 8
+            'lstm': {
+                'units': [80, 40],
+                'dropout': 0.18,
+                'epochs': 140,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 28,
+                'num_heads': 4,
+                'num_layers': 1,
+                'dff': 112,
+                'dropout': 0.45,
+                'epochs': 110,
+                'batch_size': 8
+            },
+            'name': '精细调优-微调组1'
         },
-        # 配置10: 精细微调
+        # 配置10: 精细调优 - 微调参数组2
         {
-            'units': [72, 36],
-            'dropout': 0.16,
-            'epochs': 140,
-            'batch_size': 8
+            'lstm': {
+                'units': [72, 36],
+                'dropout': 0.16,
+                'epochs': 140,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 20,
+                'num_heads': 2,
+                'num_layers': 1,
+                'dff': 80,
+                'dropout': 0.55,
+                'epochs': 130,
+                'batch_size': 8
+            },
+            'name': '精细调优-微调组2'
         }
     ]
     
@@ -167,153 +276,23 @@ def tune_lstm_parameters():
     best_lstm_config = None
     best_lstm_results = None
     
-    for i, lstm_config in enumerate(lstm_configs):
-        print(f"\n测试LSTM配置 {i+1}/{len(lstm_configs)}")
-        
-        # 创建系统实例
-        config = base_config.copy()
-        config['lstm_config'] = lstm_config
-        
-        try:
-            system = CarbonPricePredictionSystem(config=config)
-            system.load_data('data.dta')
-            system.preprocess_data()
-            system.train_models()
-            results, _ = system.evaluate_models()
-            
-            # 记录结果
-            log_tuning_result(config, results, f"LSTM配置测试 {i+1}")
-            
-            # 检查LSTM模型性能
-            if 'lstm' in results:
-                lstm_r2 = results['lstm']['R²']
-                if lstm_r2 > best_lstm_r2:
-                    best_lstm_r2 = lstm_r2
-                    best_lstm_config = lstm_config.copy()
-                    best_lstm_results = results['lstm'].copy()
-                    
-        except Exception as e:
-            error_msg = f"LSTM配置测试 {i+1} 失败: {str(e)}"
-            print(error_msg)
-            log_tuning_result(config, {}, error_msg)
-    
-    return best_lstm_config, best_lstm_results
-
-def tune_transformer_parameters():
-    """调优Transformer模型参数"""
-    print("开始调优Transformer模型参数...")
-    
-    # 基础配置
-    base_config = {
-        'target_column': 'coal_price',
-        'sequence_length': 60,
-        'test_size': 0.2,
-        'validation_size': 0.1,
-        'lstm_config': {
-            'units': [64, 32],
-            'dropout': 0.2,
-            'epochs': 100,
-            'batch_size': 32
-        }
-    }
-    
-    # Transformer参数组合 - 第四轮激进简化配置
-    transformer_configs = [
-        # 组1: 极简单层 (配置1-4)
-        # 配置1: 最激进简化
-        {
-            'd_model': 16,
-            'num_heads': 2,
-            'num_layers': 1,
-            'dff': 64,
-            'dropout': 0.6,
-            'epochs': 100,
-            'batch_size': 8
-        },
-        # 配置2: 超轻量级
-        {
-            'd_model': 24,
-            'num_heads': 2,
-            'num_layers': 1,
-            'dff': 96,
-            'dropout': 0.5,
-            'epochs': 120,
-            'batch_size': 8
-        },
-        # 配置3: 小模型+长训练
-        {
-            'd_model': 32,
-            'num_heads': 2,
-            'num_layers': 1,
-            'dff': 128,
-            'dropout': 0.5,
-            'epochs': 150,
-            'batch_size': 8
-        },
-        # 配置4: 更多注意力头
-        {
-            'd_model': 32,
-            'num_heads': 4,
-            'num_layers': 1,
-            'dff': 128,
-            'dropout': 0.5,
-            'epochs': 100,
-            'batch_size': 8
-        },
-        # 组2: 双层探索 (配置5)
-        # 配置5: 两层极简
-        {
-            'd_model': 16,
-            'num_heads': 2,
-            'num_layers': 2,
-            'dff': 64,
-            'dropout': 0.6,
-            'epochs': 100,
-            'batch_size': 8
-        },
-        # 组3: 平衡配置 (配置6-8)
-        # 配置6: 平衡配置
-        {
-            'd_model': 24,
-            'num_heads': 4,
-            'num_layers': 1,
-            'dff': 96,
-            'dropout': 0.4,
-            'epochs': 120,
-            'batch_size': 8
-        },
-        # 配置7: 极小batch
-        {
-            'd_model': 32,
-            'num_heads': 2,
-            'num_layers': 1,
-            'dff': 128,
-            'dropout': 0.5,
-            'epochs': 120,
-            'batch_size': 4
-        },
-        # 配置8: 中等规模
-        {
-            'd_model': 48,
-            'num_heads': 4,
-            'num_layers': 1,
-            'dff': 192,
-            'dropout': 0.4,
-            'epochs': 100,
-            'batch_size': 8
-        }
-    ]
-    
     best_transformer_r2 = -float('inf')
     best_transformer_config = None
     best_transformer_results = None
     
-    for i, transformer_config in enumerate(transformer_configs):
-        print(f"\n测试Transformer配置 {i+1}/{len(transformer_configs)}")
+    for i, joint_config in enumerate(joint_configs):
+        config_name = joint_config['name']
+        print(f"\n{'='*70}")
+        print(f"🔬 测试配置 {i+1}/{len(joint_configs)}: {config_name}")
+        print(f"{'='*70}")
+        print(f"LSTM参数: {joint_config['lstm']}")
+        print(f"Transformer参数: {joint_config['transformer']}")
+        print()
         
         # 创建系统实例
         config = base_config.copy()
-        config['transformer_config'] = transformer_config
+        config['lstm_config'] = joint_config['lstm']
+        config['transformer_config'] = joint_config['transformer']
         
         try:
             system = CarbonPricePredictionSystem(config=config)
@@ -323,22 +302,34 @@ def tune_transformer_parameters():
             results, _ = system.evaluate_models()
             
             # 记录结果
-            log_tuning_result(config, results, f"Transformer配置测试 {i+1}")
+            log_tuning_result(config, results, f"联合配置测试 {i+1}: {config_name}")
+            
+            # 检查LSTM模型性能
+            if 'lstm' in results:
+                lstm_r2 = results['lstm']['R²']
+                print(f"\n📊 LSTM结果: R²={lstm_r2:.4f}, RMSE={results['lstm']['RMSE']:.4f}")
+                if lstm_r2 > best_lstm_r2:
+                    best_lstm_r2 = lstm_r2
+                    best_lstm_config = joint_config['lstm'].copy()
+                    best_lstm_results = results['lstm'].copy()
+                    print(f"   🏆 LSTM新最佳记录！")
             
             # 检查Transformer模型性能
             if 'transformer' in results:
                 transformer_r2 = results['transformer']['R²']
+                print(f"📊 Transformer结果: R²={transformer_r2:.4f}, RMSE={results['transformer']['RMSE']:.4f}")
                 if transformer_r2 > best_transformer_r2:
                     best_transformer_r2 = transformer_r2
-                    best_transformer_config = transformer_config.copy()
+                    best_transformer_config = joint_config['transformer'].copy()
                     best_transformer_results = results['transformer'].copy()
+                    print(f"   🏆 Transformer新最佳记录！")
                     
         except Exception as e:
-            error_msg = f"Transformer配置测试 {i+1} 失败: {str(e)}"
-            print(error_msg)
+            error_msg = f"联合配置测试 {i+1} ({config_name}) 失败: {str(e)}"
+            print(f"\n❌ {error_msg}")
             log_tuning_result(config, {}, error_msg)
     
-    return best_transformer_config, best_transformer_results
+    return best_lstm_config, best_lstm_results, best_transformer_config, best_transformer_results
 
 def main():
     """主函数"""
@@ -365,17 +356,11 @@ def main():
         f.write("- Transformer: 激进简化(d_model=16-48, 1-2层)+高dropout(0.4-0.6)\n")
         f.write("\n" + "="*60 + "\n\n")
     
-    # 调优LSTM参数
+    # 联合调优LSTM和Transformer参数
     print("\n" + "="*60)
-    print("LSTM模型参数调优")
+    print("🔬 LSTM & Transformer 联合参数调优")
     print("="*60)
-    best_lstm_config, best_lstm_results = tune_lstm_parameters()
-    
-    # 调优Transformer参数
-    print("\n" + "="*60)
-    print("Transformer模型参数调优")
-    print("="*60)
-    best_transformer_config, best_transformer_results = tune_transformer_parameters()
+    best_lstm_config, best_lstm_results, best_transformer_config, best_transformer_results = tune_joint_parameters()
     
     # 记录最佳配置
     print("\n" + "="*60)
