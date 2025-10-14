@@ -68,7 +68,7 @@ def log_tuning_result(config, results, notes=""):
 def tune_joint_parameters():
     """联合调优LSTM和Transformer模型参数"""
     print("开始联合调优LSTM和Transformer模型参数...")
-    print("✨ 优化策略: 每次实验同时训练两个模型，共10轮测试\n")
+    print("✨ 优化策略: 围绕第四轮成功配置微调，12轮测试\n")
     
     # 基础配置
     base_config = {
@@ -78,90 +78,14 @@ def tune_joint_parameters():
         'validation_size': 0.1
     }
     
-    # 联合参数配置 - 第四轮优化 (10组配置)
+    # 联合参数配置 - 第五轮优化 (12组配置，预计3小时)
     joint_configs = [
-        # 配置1: 基线强化 - 延长训练轮数
+        # 配置1: 第四轮最佳配置基线重现
         {
             'lstm': {
-                'units': [64, 32],
-                'dropout': 0.2,
-                'epochs': 150,
-                'batch_size': 8
-            },
-            'transformer': {
-                'd_model': 16,
-                'num_heads': 2,
-                'num_layers': 1,
-                'dff': 64,
-                'dropout': 0.6,
-                'epochs': 100,
-                'batch_size': 8
-            },
-            'name': '基线强化-延长训练'
-        },
-        # 配置2: 基线强化 - 降低dropout
-        {
-            'lstm': {
-                'units': [64, 32],
-                'dropout': 0.15,
-                'epochs': 150,
-                'batch_size': 8
-            },
-            'transformer': {
-                'd_model': 24,
-                'num_heads': 2,
-                'num_layers': 1,
-                'dff': 96,
-                'dropout': 0.5,
-                'epochs': 120,
-                'batch_size': 8
-            },
-            'name': '基线强化-降低dropout'
-        },
-        # 配置3: 基线强化 - 最小dropout
-        {
-            'lstm': {
-                'units': [64, 32],
-                'dropout': 0.10,
-                'epochs': 150,
-                'batch_size': 8
-            },
-            'transformer': {
-                'd_model': 32,
-                'num_heads': 2,
-                'num_layers': 1,
-                'dff': 128,
-                'dropout': 0.5,
-                'epochs': 150,
-                'batch_size': 8
-            },
-            'name': '基线强化-最小dropout'
-        },
-        # 配置4: 网络容量 - 增加宽度
-        {
-            'lstm': {
-                'units': [96, 48],
-                'dropout': 0.2,
-                'epochs': 120,
-                'batch_size': 8
-            },
-            'transformer': {
-                'd_model': 32,
-                'num_heads': 4,
-                'num_layers': 1,
-                'dff': 128,
-                'dropout': 0.5,
-                'epochs': 100,
-                'batch_size': 8
-            },
-            'name': '网络容量-增加宽度'
-        },
-        # 配置5: 网络容量 - 增加深度
-        {
-            'lstm': {
-                'units': [96, 64, 32],
-                'dropout': 0.2,
-                'epochs': 120,
+                'units': [72, 36],
+                'dropout': 0.16,
+                'epochs': 140,
                 'batch_size': 8
             },
             'transformer': {
@@ -173,85 +97,66 @@ def tune_joint_parameters():
                 'epochs': 100,
                 'batch_size': 8
             },
-            'name': '网络容量-增加深度'
+            'name': '第四轮最佳配置基线'
         },
-        # 配置6: 组合优化 - 宽网络+低dropout
+        # 配置2: LSTM+10% epochs
         {
             'lstm': {
-                'units': [96, 48],
-                'dropout': 0.15,
-                'epochs': 150,
+                'units': [72, 36],
+                'dropout': 0.16,
+                'epochs': 154,  # 140*1.1
                 'batch_size': 8
             },
             'transformer': {
-                'd_model': 24,
-                'num_heads': 4,
-                'num_layers': 1,
-                'dff': 96,
-                'dropout': 0.4,
-                'epochs': 120,
-                'batch_size': 8
-            },
-            'name': '组合优化-宽网络+低dropout'
-        },
-        # 配置7: 组合优化 - 极小batch size
-        {
-            'lstm': {
-                'units': [64, 32],
-                'dropout': 0.2,
-                'epochs': 150,
-                'batch_size': 4
-            },
-            'transformer': {
-                'd_model': 32,
+                'd_model': 16,
                 'num_heads': 2,
-                'num_layers': 1,
-                'dff': 128,
-                'dropout': 0.5,
-                'epochs': 120,
-                'batch_size': 4
-            },
-            'name': '组合优化-极小batch_size'
-        },
-        # 配置8: 组合优化 - 大网络+高正则
-        {
-            'lstm': {
-                'units': [128, 64],
-                'dropout': 0.25,
-                'epochs': 120,
-                'batch_size': 8
-            },
-            'transformer': {
-                'd_model': 48,
-                'num_heads': 4,
-                'num_layers': 1,
-                'dff': 192,
-                'dropout': 0.4,
+                'num_layers': 2,
+                'dff': 64,
+                'dropout': 0.6,
                 'epochs': 100,
                 'batch_size': 8
             },
-            'name': '组合优化-大网络+高正则'
+            'name': 'LSTM延长训练+10%'
         },
-        # 配置9: 精细调优 - 微调参数组1
+        # 配置3: LSTM-10% dropout
         {
             'lstm': {
-                'units': [80, 40],
-                'dropout': 0.18,
+                'units': [72, 36],
+                'dropout': 0.14,  # 0.16*0.9
                 'epochs': 140,
                 'batch_size': 8
             },
             'transformer': {
-                'd_model': 28,
-                'num_heads': 4,
-                'num_layers': 1,
-                'dff': 112,
-                'dropout': 0.45,
-                'epochs': 110,
+                'd_model': 16,
+                'num_heads': 2,
+                'num_layers': 2,
+                'dff': 64,
+                'dropout': 0.6,
+                'epochs': 100,
                 'batch_size': 8
             },
-            'name': '精细调优-微调组1'
+            'name': 'LSTM降低dropout-10%'
         },
-        # 配置10: 精细调优 - 微调参数组2
+        # 配置4: LSTM+10% units
+        {
+            'lstm': {
+                'units': [80, 40],  # 72*1.1≨80
+                'dropout': 0.16,
+                'epochs': 140,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 16,
+                'num_heads': 2,
+                'num_layers': 2,
+                'dff': 64,
+                'dropout': 0.6,
+                'epochs': 100,
+                'batch_size': 8
+            },
+            'name': 'LSTM增加神经元+10%'
+        },
+        # 配置5: Transformer增加d_model
         {
             'lstm': {
                 'units': [72, 36],
@@ -260,15 +165,148 @@ def tune_joint_parameters():
                 'batch_size': 8
             },
             'transformer': {
-                'd_model': 20,
+                'd_model': 20,  # 16*1.25
                 'num_heads': 2,
-                'num_layers': 1,
+                'num_layers': 2,
                 'dff': 80,
-                'dropout': 0.55,
-                'epochs': 130,
+                'dropout': 0.6,
+                'epochs': 100,
                 'batch_size': 8
             },
-            'name': '精细调优-微调组2'
+            'name': 'Transformer扩容d_model+25%'
+        },
+        # 配置6: Transformer降低dropout
+        {
+            'lstm': {
+                'units': [72, 36],
+                'dropout': 0.16,
+                'epochs': 140,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 16,
+                'num_heads': 2,
+                'num_layers': 2,
+                'dff': 64,
+                'dropout': 0.55,  # 0.6-0.05
+                'epochs': 100,
+                'batch_size': 8
+            },
+            'name': 'Transformer降低dropout-0.05'
+        },
+        # 配置7: 联合优化-增加epochs
+        {
+            'lstm': {
+                'units': [72, 36],
+                'dropout': 0.16,
+                'epochs': 160,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 16,
+                'num_heads': 2,
+                'num_layers': 2,
+                'dff': 64,
+                'dropout': 0.6,
+                'epochs': 120,
+                'batch_size': 8
+            },
+            'name': '联合增加训练轮数'
+        },
+        # 配置8: 联合优化-batch_size=4
+        {
+            'lstm': {
+                'units': [72, 36],
+                'dropout': 0.16,
+                'epochs': 140,
+                'batch_size': 4
+            },
+            'transformer': {
+                'd_model': 16,
+                'num_heads': 2,
+                'num_layers': 2,
+                'dff': 64,
+                'dropout': 0.6,
+                'epochs': 100,
+                'batch_size': 4
+            },
+            'name': '联合极小batch_size=4'
+        },
+        # 配置9: LSTM深度+1层
+        {
+            'lstm': {
+                'units': [72, 48, 24],  # 三层
+                'dropout': 0.16,
+                'epochs': 140,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 16,
+                'num_heads': 2,
+                'num_layers': 2,
+                'dff': 64,
+                'dropout': 0.6,
+                'epochs': 100,
+                'batch_size': 8
+            },
+            'name': 'LSTM增加深度三层'
+        },
+        # 配置10: Transformer深度+1层
+        {
+            'lstm': {
+                'units': [72, 36],
+                'dropout': 0.16,
+                'epochs': 140,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 16,
+                'num_heads': 2,
+                'num_layers': 3,  # 三层
+                'dff': 64,
+                'dropout': 0.65,  # 增加dropout防止过拟合
+                'epochs': 100,
+                'batch_size': 8
+            },
+            'name': 'Transformer增加深度三层'
+        },
+        # 配置11: 精英配置-LSTM极致优化
+        {
+            'lstm': {
+                'units': [80, 40],
+                'dropout': 0.14,
+                'epochs': 160,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 16,
+                'num_heads': 2,
+                'num_layers': 2,
+                'dff': 64,
+                'dropout': 0.6,
+                'epochs': 100,
+                'batch_size': 8
+            },
+            'name': 'LSTM极致优化-多维增强'
+        },
+        # 配置12: 精英配置-Transformer突破
+        {
+            'lstm': {
+                'units': [72, 36],
+                'dropout': 0.16,
+                'epochs': 140,
+                'batch_size': 8
+            },
+            'transformer': {
+                'd_model': 24,  # 大幅增加
+                'num_heads': 2,
+                'num_layers': 2,
+                'dff': 96,
+                'dropout': 0.55,  # 降低dropout
+                'epochs': 120,
+                'batch_size': 8
+            },
+            'name': 'Transformer极致优化-突破R²0.80'
         }
     ]
     
@@ -333,27 +371,32 @@ def tune_joint_parameters():
 
 def main():
     """主函数"""
-    print("🚀 开始第四轮参数调优...")
-    print("基于最新运行结果 (2025-10-14 22:45):")
+    print("🚀 开始第五轮参数调优...")
+    print("基于最新运行结果 (2025-10-15 00:53):")
     print("  - RandomForest: R²=0.9290 (优秀)")
-    print("  - LSTM: R²=0.7227 (从0.8768退化，需恢复)")
-    print("  - Transformer: R²=-1.2344 (严重过拟合)")
+    print("  - LSTM: R²=0.574 (严重退化❌，从0.8904崩溃)")
+    print("  - Transformer: R²=0.7746 (良好✅，稳定)")
     print()
     print("🎯 优化目标:")
-    print("  1. LSTM恢复到R²>0.87 (第二轮最佳水平)")
-    print("  2. Transformer达到R²>0 (消除负值)")
-    print("  3. 理想目标: LSTM R²>0.90, Transformer R²>0.3")
+    print("  1. LSTM恢复到R²>0.89 (重现第四轮最佳)")
+    print("  2. Transformer稳定在R²>0.77 或突破至R²>0.80")
+    print("  3. 终极目标: LSTM R²>0.92, Transformer R²>0.85")
+    print("  4. 实验量: 12组配置 (预计3小时)")
     print()
     
     # 追加到现有日志
     with open('parameter_tuning.txt', 'a', encoding='utf-8') as f:
         f.write("\n\n" + "="*60 + "\n")
-        f.write("第四轮参数调优开始\n")
+        f.write("第五轮参数调优开始\n")
         f.write("="*60 + "\n")
         f.write(f"开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write("\n问题诊断:\n")
+        f.write("- LSTM从R²=0.8904崩溃至0.574，主配置文件可能被修改\n")
+        f.write("- Transformer保持稳定(0.7874→0.7746)，简化策略有效\n")
         f.write("\n优化策略:\n")
-        f.write("- LSTM: 基于第二轮成功经验(batch_size=8)，延长训练+微调dropout\n")
-        f.write("- Transformer: 激进简化(d_model=16-48, 1-2层)+高dropout(0.4-0.6)\n")
+        f.write("- LSTM: 强制恢复第四轮最佳+微调增强(12组配置)\n")
+        f.write("- Transformer: 在稳定基础上微调以突破R²=0.80\n")
+        f.write("- 策略: 围绕成功配置±10%微调，避免大幅跳跃\n")
         f.write("\n" + "="*60 + "\n\n")
     
     # 联合调优LSTM和Transformer参数
@@ -369,7 +412,7 @@ def main():
     
     final_log = [
         "\n" + "="*60,
-        "第四轮调优最终结果",
+        "第五轮调优最终结果",
         "="*60,
         f"最佳LSTM配置: {best_lstm_config}",
         f"  R²: {best_lstm_results['R²']:.4f}" if best_lstm_results else "  R²: N/A",
@@ -384,9 +427,14 @@ def main():
         f"  MAPE: {best_transformer_results['MAPE']:.4f}%" if best_transformer_results else "  MAPE: N/A",
         "",
         "关键发现:",
-        "- LSTM性能恢复情况：" + (f"成功恢复(R²={best_lstm_results['R²']:.4f})" if best_lstm_results and best_lstm_results['R²'] > 0.87 else "需继续优化"),
-        "- Transformer过拟合解决：" + (f"已解决(R²={best_transformer_results['R²']:.4f})" if best_transformer_results and best_transformer_results['R²'] > 0 else "仍需简化"),
-        "- 最佳策略：batch_size=4-8 + epochs=120-150 + dropout微调",
+        "- LSTM性能恢复情况：" + (f"成功恢复(R²={best_lstm_results['R²']:.4f})" if best_lstm_results and best_lstm_results['R²'] >= 0.89 else f"进展中(R²={best_lstm_results['R²']:.4f})" if best_lstm_results else "需继续优化"),
+        "- Transformer突破情况：" + (f"成功突破(R²={best_transformer_results['R²']:.4f})" if best_transformer_results and best_transformer_results['R²'] > 0.80 else f"稳定状态(R²={best_transformer_results['R²']:.4f})" if best_transformer_results else "需继续优化"),
+        "- 最佳策略：围绕第四轮成功配置±10%微调",
+        "- 性能评估：" + (
+            "双模型均达预期" if (best_lstm_results and best_lstm_results['R²'] >= 0.89 and best_transformer_results and best_transformer_results['R²'] >= 0.77)
+            else "部分达标" if (best_lstm_results and best_lstm_results['R²'] >= 0.85)
+            else "需进一步优化"
+        ),
         "",
         f"调优结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         "="*60
@@ -396,15 +444,15 @@ def main():
         f.write('\n'.join(final_log))
     
     print("\n" + "="*60)
-    print("✅ 第四轮参数调优已完成！")
+    print("✅ 第五轮参数调优已完成！")
     print("="*60)
     if best_lstm_results:
         print(f"\n🏆 最佳LSTM模型:")
         print(f"   配置: {best_lstm_config}")
         print(f"   R² = {best_lstm_results['R²']:.4f}")
         print(f"   RMSE = {best_lstm_results['RMSE']:.4f}")
-        if best_lstm_results['R²'] >= 0.87:
-            print("   ✅ 已达到目标 (R²≥0.87)")
+        if best_lstm_results['R²'] >= 0.89:
+            print("   ✅ 已达到目标 (R²≥0.89)")
         elif best_lstm_results['R²'] >= 0.85:
             print("   ⚠️ 接近目标 (R²≥0.85)")
         else:
@@ -414,14 +462,26 @@ def main():
         print(f"   配置: {best_transformer_config}")
         print(f"   R² = {best_transformer_results['R²']:.4f}")
         print(f"   RMSE = {best_transformer_results['RMSE']:.4f}")
-        if best_transformer_results['R²'] >= 0.3:
-            print("   ✅ 超出预期 (R²≥0.3)")
-        elif best_transformer_results['R²'] > 0:
-            print("   ✅ 达到基本目标 (R²>0)")
+        if best_transformer_results['R²'] >= 0.80:
+            print("   ✅ 超出预期 (R²≥0.80)")
+        elif best_transformer_results['R²'] >= 0.77:
+            print("   ✅ 达到基本目标 (R²≥0.77)")
         else:
-            print("   ❌ 仍过拟合，需进一步简化")
+            print("   ⚠️ 需进一步优化")
     print("\n📄 详细记录请查看: parameter_tuning.txt")
     print("="*60)
 
 if __name__ == "__main__":
+    import platform
+    
+    # 在macOS上提示使用caffeinate防止休眠
+    if platform.system() == 'Darwin':
+        print("\n" + "="*60)
+        print("⚠️  重要提示：本轮优化预计需要3小时")
+        print("="*60)
+        print("建议使用caffeinate防止Mac休眠：")
+        print("  caffeinate -i python3 parameter_tuning.py")
+        print("="*60)
+        print()
+    
     main()
