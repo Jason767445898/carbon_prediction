@@ -27,15 +27,13 @@ import pickle
 import time
 
 def log_message(message, log_file=None):
-    """记录日志信息"""
+    """记录日志信息（仅打印到控制台）"""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_entry = f"[{timestamp}] {message}"
     print(log_entry)
-    if log_file:
-        with open(log_file, 'a', encoding='utf-8') as f:
-            f.write(log_entry + '\n')
+    # 不再生成.log文件，只输出到控制台
 
-def run_experiment(config, experiment_name, log_file):
+def run_experiment(config, experiment_name):
     """运行单个实验配置
     
     Args:
@@ -43,48 +41,48 @@ def run_experiment(config, experiment_name, log_file):
         experiment_name: 实验名称
         log_file: 日志文件路径
     """
-    log_message(f"\n{'='*80}", log_file)
-    log_message(f"🧪 开始实验: {experiment_name}", log_file)
-    log_message(f"{'='*80}", log_file)
+    log_message(f"\n{'='*80}")
+    log_message(f"🧪 开始实验: {experiment_name}")
+    log_message(f"{'='*80}")
     
     start_time = time.time()
     
     # 显示配置
-    log_message(f"\n📋 配置详情:", log_file)
+    log_message(f"\n📋 配置详情:")
     for key, value in config.items():
         if isinstance(value, dict):
-            log_message(f"  {key}:", log_file)
+            log_message(f"  {key}:")
             for k, v in value.items():
-                log_message(f"    {k}: {v}", log_file)
+                log_message(f"    {k}: {v}")
         else:
-            log_message(f"  {key}: {value}", log_file)
+            log_message(f"  {key}: {value}")
     
     try:
         # 创建系统实例
-        log_message("\n📦 创建系统实例...", log_file)
+        log_message("\n📦 创建系统实例...")
         system = CarbonPricePredictionSystem(config=config)
         
         # 加载数据
-        log_message("\n📁 正在加载数据...", log_file)
+        log_message("\n📁 正在加载数据...")
         data_file = 'data.dta'
         if not os.path.exists(data_file):
-            log_message(f"❌ 数据文件不存在: {data_file}", log_file)
+            log_message(f"❌ 数据文件不存在: {data_file}")
             return None
         system.load_data(data_file)
-        log_message(f"✅ 数据加载成功，共 {len(system.data)} 行", log_file)
+        log_message(f"✅ 数据加载成功")
         
         # 预处理数据
-        log_message("\n🔧 正在预处理数据...", log_file)
+        log_message("\n🔧 正在预处理数据...")
         system.preprocess_data()
-        log_message("✅ 数据预处理完成", log_file)
+        log_message("✅ 数据预处理完成")
         
         # 训练模型
-        log_message(f"\n🚀 正在训练所有模型...", log_file)
+        log_message(f"\n🚀 正在训练所有模型...")
         system.train_models()
         
         # 获取结果
         elapsed_time = time.time() - start_time
-        log_message(f"\n⏱️  训练耗时: {elapsed_time:.2f}秒 ({elapsed_time/60:.2f}分钟)", log_file)
+        log_message(f"\n⏱️  训练耗时: {elapsed_time:.2f}秒 ({elapsed_time/60:.2f}分钟)")
         
         results = {}
         for model_name, metrics in system.predictions.items():
@@ -104,21 +102,21 @@ def run_experiment(config, experiment_name, log_file):
             # 判断结果质量
             quality = "❌ 失败" if r2 < 0 else "⚠️ 待改进" if r2 < 0.6 else "✅ 良好" if r2 < 0.85 else "🏆 优秀"
             
-            log_message(f"\n  {quality} {model_name}:", log_file)
-            log_message(f"     R² = {r2:.4f}", log_file)
-            log_message(f"     RMSE = {rmse:.4f}", log_file)
-            log_message(f"     MAE = {mae:.4f}", log_file)
-            log_message(f"     MAPE = {mape:.2f}%", log_file)
+            log_message(f"\n  {quality} {model_name}:")
+            log_message(f"     R² = {r2:.4f}")
+            log_message(f"     RMSE = {rmse:.4f}")
+            log_message(f"     MAE = {mae:.4f}")
+            log_message(f"     MAPE = {mape:.2f}%")
         
-        log_message(f"\n✅ 实验完成: {experiment_name}", log_file)
+        log_message(f"\n✅ 实验完成: {experiment_name}")
         return results
         
     except Exception as e:
         elapsed_time = time.time() - start_time
-        log_message(f"\n❌ 实验失败 (耗时 {elapsed_time:.2f}秒): {str(e)}", log_file)
+        log_message(f"\n❌ 实验失败 (耗时 {elapsed_time:.2f}秒): {str(e)}")
         import traceback
         error_trace = traceback.format_exc()
-        log_message(error_trace, log_file)
+        log_message(error_trace)
         
         # 返回错误信息而不是None，便于分析
         return {
@@ -146,7 +144,7 @@ def load_checkpoint(checkpoint_file):
             print(f"⚠️ 加载检查点失败: {e}")
     return None
 
-def save_intermediate_results(all_results, results_file, log_file):
+def save_intermediate_results(all_results, results_file):
     """保存中间结果"""
     if not all_results:
         return
@@ -170,18 +168,22 @@ def save_intermediate_results(all_results, results_file, log_file):
                     f.write(f"\n{model} 模型结果:\n")
                     f.write("-"*100 + "\n")
                     for idx, row in enumerate(model_results.itertuples(), 1):
-                        f.write(f"{idx:2d}. {row.experiment:<35} R²={getattr(row, 'R²', np.nan):<8.4f} RMSE={row.RMSE:<8.2f} MAE={row.MAE:<8.2f} MAPE={row.MAPE:<7.2f}%\n")
+                        exp_name = getattr(row, 'experiment', '')
+                        r2_val = getattr(row, 'R²', np.nan)
+                        rmse_val = getattr(row, 'RMSE', np.nan)
+                        mae_val = getattr(row, 'MAE', np.nan)
+                        mape_val = getattr(row, 'MAPE', np.nan)
+                        f.write(f"{idx:2d}. {exp_name:<35} R²={r2_val:<8.4f} RMSE={rmse_val:<8.2f} MAE={mae_val:<8.2f} MAPE={mape_val:<7.2f}%\n")
         
-        log_message(f"💾 中间结果已保存: {results_file}", log_file)
+        log_message(f"💾 中间结果已保存: {results_file}")
     except Exception as e:
-        log_message(f"⚠️ 保存中间结果失败: {e}", log_file)
+        log_message(f"⚠️ 保存中间结果失败: {e}")
 
 def main():
     """第四轮优化主流程"""
     
-    # 创建日志文件
+    # 创建结果文件（不生成log文件）
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    log_file = f'parameter/parameter_tuning_v4_{timestamp}.log'
     results_file = f'parameter/parameter_tuning_v4_{timestamp}.txt'
     checkpoint_file = f'parameter/parameter_tuning_v4_{timestamp}.checkpoint'
     
@@ -193,36 +195,35 @@ def main():
     if checkpoint:
         start_idx = checkpoint.get('last_completed_idx', 0) + 1
         all_results = checkpoint.get('results', [])
-        log_message(f"✅ 从检查点恢复，继续从第 {start_idx + 1} 个实验开始", log_file)
+        log_message(f"✅ 从检查点恢复，继续从第 {start_idx + 1} 个实验开始")
     
-    log_message("="*80, log_file)
-    log_message("🎯 碳价格预测系统 - 第四轮参数优化 (增强版)", log_file)
-    log_message("="*80, log_file)
-    log_message(f"\n优化开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", log_file)
-    log_message(f"日志文件: {log_file}", log_file)
-    log_message(f"结果文件: {results_file}", log_file)
-    log_message(f"检查点文件: {checkpoint_file}", log_file)
+    log_message("="*80)
+    log_message("🎯 碳价格预测系统 - 第四轮参数优化 (方案1:统一测试)")
+    log_message("="*80)
+    log_message(f"\n优化开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log_message(f"结果文件: {results_file}")
+    log_message(f"检查点文件: {checkpoint_file}")
     
-    log_message("\n📊 最新结果分析 (2025-10-14 22:45):", log_file)
-    log_message("  • RandomForest: R²=0.9290 (↓ from 0.9430)", log_file)
-    log_message("  • LSTM: R²=0.7227 (↓↓ from 0.8768)", log_file)
-    log_message("  • Transformer: R²=-1.2344 (仍过拟合)", log_file)
+    log_message("\n📊 最新结果分析 (2025-10-14 22:45):")
+    log_message("  • RandomForest: R²=0.9290 (↓ from 0.9430)")
+    log_message("  • LSTM: R²=0.7227 (↓↓ from 0.8768)")
+    log_message("  • Transformer: R²=-1.2344 (仍过拟合)")
     
-    log_message("\n🎯 优化目标:", log_file)
-    log_message("  1. LSTM恢复到R²>0.87 (第二轮最佳水平)", log_file)
-    log_message("  2. Transformer达到R²>0 (可用水平)", log_file)
-    log_message("  3. RandomForest稳定在R²>0.92", log_file)
+    log_message("\n🎯 优化目标:")
+    log_message("  1. LSTM恢复到R²>0.87 (第二轮最佳水平)")
+    log_message("  2. Transformer达到R²>0 (可用水平)")
+    log_message("  3. RandomForest稳定在R²>0.92")
     
     # =============================================================================
     # 统一实验配置 - 每次同时优化LSTM和Transformer
     # =============================================================================
-    log_message("\n" + "="*80, log_file)
-    log_message("📝 优化策略 (方案1: 统一测试):", log_file)
-    log_message("="*80, log_file)
-    log_message("  策略: 每次实验同时训练所有模型", log_file)
-    log_message("  优势: 减少总实验次数，便于横向对比", log_file)
-    log_message("  LSTM目标: 恢复到R²>0.87", log_file)
-    log_message("  Transformer目标: 达到R²>0", log_file)
+    log_message("\n" + "="*80)
+    log_message("📝 优化策略 (方案1: 统一测试):")
+    log_message("="*80)
+    log_message("  策略: 每次实验同时训练所有模型")
+    log_message("  优势: 减少总实验次数，便于横向对比")
+    log_message("  LSTM目标: 恢复到R²>0.87")
+    log_message("  Transformer目标: 达到R²>0")
     
     # 统一的实验配置列表
     unified_configs = [
@@ -445,21 +446,21 @@ def main():
     
     total_experiments = len(unified_configs)
     
-    log_message("\n" + "="*80, log_file)
-    log_message("🚀 开始统一优化实验", log_file)
-    log_message(f"总计 {total_experiments} 个配置，每次同时训练所有模型", log_file)
-    log_message("="*80, log_file)
+    log_message("\n" + "="*80)
+    log_message("🚀 开始统一优化实验")
+    log_message(f"总计 {total_experiments} 个配置，每次同时训练所有模型")
+    log_message("="*80)
     
     for i, config_info in enumerate(unified_configs, 1):
         # 检查是否已完成
         if i - 1 < start_idx:
-            log_message(f"⏭️  跳过已完成的实验 {i}/{total_experiments}", log_file)
+            log_message(f"⏭️  跳过已完成的实验 {i}/{total_experiments}")
             continue
-        log_message(f"\n{'='*80}", log_file)
-        log_message(f"📊 总进度: {i}/{total_experiments}", log_file)
-        log_message(f"🧪 实验: {config_info['name']}", log_file)
-        log_message(f"📝 说明: {config_info['description']}", log_file)
-        log_message(f"{'='*80}", log_file)
+        log_message(f"\n{'='*80}")
+        log_message(f"📊 总进度: {i}/{total_experiments}")
+        log_message(f"🧪 实验: {config_info['name']}")
+        log_message(f"📝 说明: {config_info['description']}")
+        log_message(f"{'='*80}")
         
         # 创建完整配置
         full_config = DEFAULT_CONFIG.copy()
@@ -467,7 +468,7 @@ def main():
         full_config['transformer_config'] = config_info['transformer_config']
         
         # 运行实验（训练所有模型）
-        results = run_experiment(full_config, config_info['name'], log_file)
+        results = run_experiment(full_config, config_info['name'])
         
         if results:
             if 'error' in results:
@@ -502,14 +503,14 @@ def main():
                 if 'lstm' in results:
                     lstm_r2 = results['lstm'].get('R²', 0)
                     if lstm_r2 >= 0.87:
-                        log_message(f"\n🎉 LSTM达到目标! R²={lstm_r2:.4f} >= 0.87", log_file)
+                        log_message(f"\n🎉 LSTM达到目标! R²={lstm_r2:.4f} >= 0.87")
                 
                 if 'transformer' in results:
                     trans_r2 = results['transformer'].get('R²', -999)
                     if trans_r2 > 0:
-                        log_message(f"\n🎉 Transformer首次达到正R²! R²={trans_r2:.4f}", log_file)
+                        log_message(f"\n🎉 Transformer首次达到正R²! R²={trans_r2:.4f}")
                     if trans_r2 >= 0.5:
-                        log_message(f"\n🏆 Transformer达到优秀水平! R²={trans_r2:.4f} >= 0.5", log_file)
+                        log_message(f"\n🏆 Transformer达到优秀水平! R²={trans_r2:.4f} >= 0.5")
             
             # 保存检查点和中间结果
             checkpoint_data = {
@@ -518,15 +519,15 @@ def main():
                 'timestamp': datetime.now().isoformat()
             }
             save_checkpoint(checkpoint_data, checkpoint_file)
-            save_intermediate_results(all_results, results_file, log_file)
+            save_intermediate_results(all_results, results_file)
     
     # =============================================================================
     # 生成结果报告
     # =============================================================================
     
-    log_message("\n" + "="*80, log_file)
-    log_message("📊 生成优化结果报告", log_file)
-    log_message("="*80, log_file)
+    log_message("\n" + "="*80)
+    log_message("📊 生成优化结果报告")
+    log_message("="*80)
     
     # 转换为DataFrame
     df_results = pd.DataFrame(all_results)
@@ -629,42 +630,41 @@ def main():
                 best_r2 = model_data['R²'].max()
                 f.write(f"{model_name.upper():<20} R² = {best_r2:.4f}\n")
     
-    log_message(f"\n✅ 结果已保存到: {results_file}", log_file)
-    log_message(f"✅ 日志已保存到: {log_file}", log_file)
+    log_message(f"\n✅ 结果已保存到: {results_file}")
     
     # 显示最佳结果
     lstm_results = df_results[df_results['model'] == 'lstm'].copy()
     if not lstm_results.empty:
         lstm_results = lstm_results.sort_values('R²', ascending=False)
         best_lstm = lstm_results.iloc[0]
-        log_message(f"\n🏆 LSTM最佳: {best_lstm['experiment']} - R²={best_lstm['R\u00b2']:.4f}", log_file)
+        log_message(f"\n🏆 LSTM最佳: {best_lstm['experiment']} - R²={best_lstm['R²']:.4f}")
     
     trans_results = df_results[df_results['model'] == 'transformer'].copy()
     if not trans_results.empty:
         trans_results = trans_results.sort_values('R²', ascending=False)
         best_trans = trans_results.iloc[0]
-        log_message(f"🏆 Transformer最佳: {best_trans['experiment']} - R²={best_trans['R\u00b2']:.4f}", log_file)
+        log_message(f"🏆 Transformer最佳: {best_trans['experiment']} - R²={best_trans['R²']:.4f}")
     
     rf_results = df_results[df_results['model'] == 'random_forest'].copy()
     if not rf_results.empty:
         rf_results = rf_results.sort_values('R²', ascending=False)
         best_rf = rf_results.iloc[0]
-        log_message(f"🏆 RandomForest最佳: {best_rf['experiment']} - R²={best_rf['R\u00b2']:.4f}", log_file)
+        log_message(f"🏆 RandomForest最佳: {best_rf['experiment']} - R²={best_rf['R²']:.4f}")
     
-    log_message(f"\n优化完成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", log_file)
+    log_message(f"\n优化完成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # 清理检查点文件
     try:
         if os.path.exists(checkpoint_file):
             os.remove(checkpoint_file)
-            log_message(f"🗑️  已清理检查点文件: {checkpoint_file}", log_file)
+            log_message(f"🗑️  已清理检查点文件: {checkpoint_file}")
     except:
         pass
     
-    log_message("="*80, log_file)
-    log_message("\n" + "="*80, log_file)
-    log_message("🎉 第四轮参数优化圆满完成!", log_file)
-    log_message("="*80, log_file)
+    log_message("="*80)
+    log_message("\n" + "="*80)
+    log_message("🎉 第四轮参数优化圆满完成!")
+    log_message("="*80)
     
     return results_file
 
@@ -675,7 +675,7 @@ def quick_test(config_name='exp_baseline'):
         config_name: 配置名称
     """
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    log_file = f'parameter/quick_test_{config_name}_{timestamp}.log'
+    results_file = f'parameter/quick_test_{config_name}_{timestamp}.txt'
     
     # 预定义的快速测试配置
     quick_configs = {
@@ -717,7 +717,7 @@ def quick_test(config_name='exp_baseline'):
     print()
     
     # 运行实验
-    results = run_experiment(full_config, config_info['name'], log_file)
+    results = run_experiment(full_config, config_info['name'])
     
     if results and 'error' not in results:
         print(f"\n✅ 测试完成!")
@@ -730,7 +730,7 @@ def quick_test(config_name='exp_baseline'):
     else:
         print(f"\n❌ 测试失败")
     
-    print(f"\n日志文件: {log_file}")
+    print(f"\n结果文件: {results_file}")
 
 if __name__ == '__main__':
     main()
