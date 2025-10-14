@@ -85,76 +85,80 @@ def tune_lstm_parameters():
         }
     }
     
-    # LSTM参数组合 - 基于batch_size=16的最佳结果继续优化
+    # LSTM参数组合 - 第四轮优化配置
     lstm_configs = [
-        # 最佳基线配置 (batch_size=16, R²=0.6778)
-        {
-            'units': [64, 32],
-            'dropout': 0.2,
-            'epochs': 100,
-            'batch_size': 16
-        },
-        # 基于最佳配置：增加网络深度
-        {
-            'units': [128, 64, 32],
-            'dropout': 0.2,
-            'epochs': 100,
-            'batch_size': 16
-        },
-        # 基于最佳配置：增加网络宽度
-        {
-            'units': [128, 64],
-            'dropout': 0.2,
-            'epochs': 100,
-            'batch_size': 16
-        },
-        # 基于最佳配置：降低dropout
-        {
-            'units': [64, 32],
-            'dropout': 0.1,
-            'epochs': 100,
-            'batch_size': 16
-        },
-        # 基于最佳配置：增加训练轮数
+        # 组1: 基线强化 (配置1-3)
+        # 配置1: 延长训练轮数
         {
             'units': [64, 32],
             'dropout': 0.2,
             'epochs': 150,
-            'batch_size': 16
-        },
-        # 基于最佳配置：减小batch_size
-        {
-            'units': [64, 32],
-            'dropout': 0.2,
-            'epochs': 100,
             'batch_size': 8
         },
-        # 复杂网络 + 小batch_size
+        # 配置2: 降低dropout，增强拟合
         {
-            'units': [128, 64, 32],
+            'units': [64, 32],
             'dropout': 0.15,
-            'epochs': 120,
-            'batch_size': 16
+            'epochs': 150,
+            'batch_size': 8
         },
-        # 宽网络 + 低dropout
+        # 配置3: 进一步降低dropout
         {
-            'units': [128, 64],
-            'dropout': 0.1,
-            'epochs': 120,
-            'batch_size': 16
+            'units': [64, 32],
+            'dropout': 0.10,
+            'epochs': 150,
+            'batch_size': 8
         },
-        # 深网络 + 正则化
+        # 组2: 网络容量优化 (配置4-5)
+        # 配置4: 增加宽度
+        {
+            'units': [96, 48],
+            'dropout': 0.2,
+            'epochs': 120,
+            'batch_size': 8
+        },
+        # 配置5: 增加深度
         {
             'units': [96, 64, 32],
-            'dropout': 0.25,
-            'epochs': 100,
-            'batch_size': 16
+            'dropout': 0.2,
+            'epochs': 120,
+            'batch_size': 8
         },
-        # 小batch_size + 更多epochs
+        # 组3: 组合优化 (配置6-8)
+        # 配置6: 宽网络+低dropout
+        {
+            'units': [96, 48],
+            'dropout': 0.15,
+            'epochs': 150,
+            'batch_size': 8
+        },
+        # 配置7: 极小batch size
         {
             'units': [64, 32],
             'dropout': 0.2,
-            'epochs': 200,
+            'epochs': 150,
+            'batch_size': 4
+        },
+        # 配置8: 大网络+高正则
+        {
+            'units': [128, 64],
+            'dropout': 0.25,
+            'epochs': 120,
+            'batch_size': 8
+        },
+        # 组4: 精细调优 (配置9-10)
+        # 配置9: 在最优区间微调
+        {
+            'units': [80, 40],
+            'dropout': 0.18,
+            'epochs': 140,
+            'batch_size': 8
+        },
+        # 配置10: 精细微调
+        {
+            'units': [72, 36],
+            'dropout': 0.16,
+            'epochs': 140,
             'batch_size': 8
         }
     ]
@@ -213,79 +217,90 @@ def tune_transformer_parameters():
         }
     }
     
-    # Transformer参数组合 - 针对R²为负的问题优化
+    # Transformer参数组合 - 第四轮激进简化配置
     transformer_configs = [
-        # 简化模型：减少复杂度，防止过拟合
+        # 组1: 极简单层 (配置1-4)
+        # 配置1: 最激进简化
         {
-            'd_model': 64,
-            'num_heads': 4,
-            'num_layers': 2,
-            'dff': 256,
-            'dropout': 0.3,
-            'epochs': 50
+            'd_model': 16,
+            'num_heads': 2,
+            'num_layers': 1,
+            'dff': 64,
+            'dropout': 0.6,
+            'epochs': 100,
+            'batch_size': 8
         },
-        # 轻量级配置
+        # 配置2: 超轻量级
         {
-            'd_model': 32,
-            'num_heads': 4,
-            'num_layers': 2,
-            'dff': 128,
-            'dropout': 0.3,
-            'epochs': 50
+            'd_model': 24,
+            'num_heads': 2,
+            'num_layers': 1,
+            'dff': 96,
+            'dropout': 0.5,
+            'epochs': 120,
+            'batch_size': 8
         },
-        # 增加正则化
-        {
-            'd_model': 64,
-            'num_heads': 4,
-            'num_layers': 3,
-            'dff': 256,
-            'dropout': 0.4,
-            'epochs': 50
-        },
-        # 减少层数，增加训练轮数
-        {
-            'd_model': 64,
-            'num_heads': 4,
-            'num_layers': 2,
-            'dff': 256,
-            'dropout': 0.2,
-            'epochs': 100
-        },
-        # 最小配置
+        # 配置3: 小模型+长训练
         {
             'd_model': 32,
             'num_heads': 2,
-            'num_layers': 2,
+            'num_layers': 1,
             'dff': 128,
-            'dropout': 0.3,
-            'epochs': 80
-        },
-        # 中等复杂度 + 高dropout
-        {
-            'd_model': 64,
-            'num_heads': 8,
-            'num_layers': 2,
-            'dff': 256,
             'dropout': 0.5,
-            'epochs': 50
+            'epochs': 150,
+            'batch_size': 8
         },
-        # 平衡配置
-        {
-            'd_model': 96,
-            'num_heads': 4,
-            'num_layers': 3,
-            'dff': 384,
-            'dropout': 0.3,
-            'epochs': 60
-        },
-        # 超轻量级 + 更多epochs
+        # 配置4: 更多注意力头
         {
             'd_model': 32,
             'num_heads': 4,
             'num_layers': 1,
             'dff': 128,
-            'dropout': 0.2,
-            'epochs': 100
+            'dropout': 0.5,
+            'epochs': 100,
+            'batch_size': 8
+        },
+        # 组2: 双层探索 (配置5)
+        # 配置5: 两层极简
+        {
+            'd_model': 16,
+            'num_heads': 2,
+            'num_layers': 2,
+            'dff': 64,
+            'dropout': 0.6,
+            'epochs': 100,
+            'batch_size': 8
+        },
+        # 组3: 平衡配置 (配置6-8)
+        # 配置6: 平衡配置
+        {
+            'd_model': 24,
+            'num_heads': 4,
+            'num_layers': 1,
+            'dff': 96,
+            'dropout': 0.4,
+            'epochs': 120,
+            'batch_size': 8
+        },
+        # 配置7: 极小batch
+        {
+            'd_model': 32,
+            'num_heads': 2,
+            'num_layers': 1,
+            'dff': 128,
+            'dropout': 0.5,
+            'epochs': 120,
+            'batch_size': 4
+        },
+        # 配置8: 中等规模
+        {
+            'd_model': 48,
+            'num_heads': 4,
+            'num_layers': 1,
+            'dff': 192,
+            'dropout': 0.4,
+            'epochs': 100,
+            'batch_size': 8
         }
     ]
     
@@ -327,21 +342,27 @@ def tune_transformer_parameters():
 
 def main():
     """主函数"""
-    print("🚀 开始第二轮参数调优...")
-    print("基于上一轮结果:")
-    print("  - LSTM最佳: batch_size=16, R²=0.6778")
-    print("  - Transformer问题: 所有配置R²为负，需要简化模型")
+    print("🚀 开始第四轮参数调优...")
+    print("基于最新运行结果 (2025-10-14 22:45):")
+    print("  - RandomForest: R²=0.9290 (优秀)")
+    print("  - LSTM: R²=0.7227 (从0.8768退化，需恢复)")
+    print("  - Transformer: R²=-1.2344 (严重过拟合)")
+    print()
+    print("🎯 优化目标:")
+    print("  1. LSTM恢复到R²>0.87 (第二轮最佳水平)")
+    print("  2. Transformer达到R²>0 (消除负值)")
+    print("  3. 理想目标: LSTM R²>0.90, Transformer R²>0.3")
     print()
     
     # 追加到现有日志
     with open('parameter_tuning.txt', 'a', encoding='utf-8') as f:
         f.write("\n\n" + "="*60 + "\n")
-        f.write("第二轮参数调优开始\n")
+        f.write("第四轮参数调优开始\n")
         f.write("="*60 + "\n")
         f.write(f"开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write("\n优化策略:\n")
-        f.write("- LSTM: 基于batch_size=16的最佳配置继续优化\n")
-        f.write("- Transformer: 简化模型结构，增加dropout防止过拟合\n")
+        f.write("- LSTM: 基于第二轮成功经验(batch_size=8)，延长训练+微调dropout\n")
+        f.write("- Transformer: 激进简化(d_model=16-48, 1-2层)+高dropout(0.4-0.6)\n")
         f.write("\n" + "="*60 + "\n\n")
     
     # 调优LSTM参数
@@ -363,7 +384,7 @@ def main():
     
     final_log = [
         "\n" + "="*60,
-        "第二轮调优最终结果",
+        "第四轮调优最终结果",
         "="*60,
         f"最佳LSTM配置: {best_lstm_config}",
         f"  R²: {best_lstm_results['R²']:.4f}" if best_lstm_results else "  R²: N/A",
@@ -378,9 +399,9 @@ def main():
         f"  MAPE: {best_transformer_results['MAPE']:.4f}%" if best_transformer_results else "  MAPE: N/A",
         "",
         "关键发现:",
-        "- LSTM模型：小batch_size(8-16)显著提升性能",
-        "- Transformer模型：需要简化结构并增加正则化",
-        "- 建议：优先使用优化后的LSTM或传统机器学习模型",
+        "- LSTM性能恢复情况：" + (f"成功恢复(R²={best_lstm_results['R²']:.4f})" if best_lstm_results and best_lstm_results['R²'] > 0.87 else "需继续优化"),
+        "- Transformer过拟合解决：" + (f"已解决(R²={best_transformer_results['R²']:.4f})" if best_transformer_results and best_transformer_results['R²'] > 0 else "仍需简化"),
+        "- 最佳策略：batch_size=4-8 + epochs=120-150 + dropout微调",
         "",
         f"调优结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         "="*60
@@ -390,18 +411,30 @@ def main():
         f.write('\n'.join(final_log))
     
     print("\n" + "="*60)
-    print("✅ 第二轮参数调优已完成！")
+    print("✅ 第四轮参数调优已完成！")
     print("="*60)
     if best_lstm_results:
         print(f"\n🏆 最佳LSTM模型:")
         print(f"   配置: {best_lstm_config}")
         print(f"   R² = {best_lstm_results['R²']:.4f}")
         print(f"   RMSE = {best_lstm_results['RMSE']:.4f}")
+        if best_lstm_results['R²'] >= 0.87:
+            print("   ✅ 已达到目标 (R²≥0.87)")
+        elif best_lstm_results['R²'] >= 0.85:
+            print("   ⚠️ 接近目标 (R²≥0.85)")
+        else:
+            print("   ❌ 未达目标，需继续优化")
     if best_transformer_results:
         print(f"\n🏆 最佳Transformer模型:")
         print(f"   配置: {best_transformer_config}")
         print(f"   R² = {best_transformer_results['R²']:.4f}")
         print(f"   RMSE = {best_transformer_results['RMSE']:.4f}")
+        if best_transformer_results['R²'] >= 0.3:
+            print("   ✅ 超出预期 (R²≥0.3)")
+        elif best_transformer_results['R²'] > 0:
+            print("   ✅ 达到基本目标 (R²>0)")
+        else:
+            print("   ❌ 仍过拟合，需进一步简化")
     print("\n📄 详细记录请查看: parameter_tuning.txt")
     print("="*60)
 
