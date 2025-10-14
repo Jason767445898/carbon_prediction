@@ -456,18 +456,58 @@ class CarbonPricePredictionSystem:
         # 首先检查并处理原始数据中的NaN值
         print(f"原始数据NaN统计: {df.isnull().sum().sum()} 个")
         
-        # 使用插值法填充原始数据中的NaN（更稳健的方法）
+        # 识别并移除全为NaN的列
+        null_cols = df.columns[df.isnull().all()].tolist()
+        if null_cols:
+            print(f"⚠️  发现全为NaN的列: {null_cols}")
+            print(f"   这些列将被移除，因为无法通过插值恢复")
+            df = df.drop(columns=null_cols)
+        
+        # 识别NaN比例过高的列（超过80%）
+        high_nan_cols = []
+        for col in df.columns:
+            nan_ratio = df[col].isnull().sum() / len(df)
+            if nan_ratio > 0.8:
+                high_nan_cols.append((col, nan_ratio))
+        
+        if high_nan_cols:
+            print(f"⚠️  发现NaN比例过高(>80%)的列:")
+            for col, ratio in high_nan_cols:
+                print(f"   {col}: {ratio*100:.1f}% NaN")
+            print(f"   建议移除这些列以提高数据质量")
+            # 自动移除NaN比例超过80%的列
+            cols_to_drop = [col for col, _ in high_nan_cols]
+            df = df.drop(columns=cols_to_drop)
+            print(f"   已移除 {len(cols_to_drop)} 个低质量列")
+        
+        # 使用多种插值方法填充原始数据中的NaN（更稳健的方法）
         for col in df.columns:
             if df[col].isnull().any():
-                # 先使用线性插值
+                # 1. 首先尝试线性插值（双向）
                 df[col] = df[col].interpolate(method='linear', limit_direction='both')
-                # 对于首尾的NaN值，使用前向/后向填充
-                df[col] = df[col].fillna(method='bfill').fillna(method='ffill')
-                # 如果还有NaN（极端情况），用列均值填充
+                
+                # 2. 对于首尾的NaN值，使用多项式插值
+                if df[col].isnull().any():
+                    df[col] = df[col].interpolate(method='polynomial', order=2, limit_direction='both')
+                
+                # 3. 使用前向填充处理剩余的NaN
+                if df[col].isnull().any():
+                    df[col] = df[col].bfill()
+                
+                # 4. 使用后向填充处理剩余的NaN
+                if df[col].isnull().any():
+                    df[col] = df[col].ffill()
+                
+                # 5. 如果还有NaN（极端情况），用列均值填充
                 if df[col].isnull().any():
                     df[col] = df[col].fillna(df[col].mean())
+                
+                # 6. 最后的保险措施：用中位数填充
+                if df[col].isnull().any():
+                    df[col] = df[col].fillna(df[col].median())
         
         print(f"原始数据NaN处理后: {df.isnull().sum().sum()} 个")
+        print(f"保留的列数: {len(df.columns)}")
         
         # 价格变化特征
         df['price_return'] = df[target_col].pct_change()
@@ -514,22 +554,55 @@ class CarbonPricePredictionSystem:
         print(f"特征工程后数据形状: {df.shape}")
         print(f"特征工程后NaN统计: {df.isnull().sum().sum()} 个")
         
-        # 再次使用插值法处理衍生特征产生的NaN
+        # 再次使用多层次插值法处理衍生特征产生的NaN
         for col in df.columns:
             if df[col].isnull().any():
-                # 线性插值
+                # 1. 线性插值（双向）
                 df[col] = df[col].interpolate(method='linear', limit_direction='both')
-                # 前向/后向填充
-                df[col] = df[col].fillna(method='bfill').fillna(method='ffill')
-                # 最后用均值填充（如果还有NaN）
+                
+                # 2. 时间序列插值（针对时间相关的特征）
+                if df[col].isnull().any():
+                    try:
+                        df[col] = df[col].interpolate(method='time')
+                    except:
+                        pass  # 如果时间插值失败，继续使用其他方法
+                
+                # 3. 样条插值（更平滑）
+                if df[col].isnull().any():
+                    try:
+                        df[col] = df[col].interpolate(method='spline', order=3, limit_direction='both')
+                    except:
+                        pass  # 如果样条插值失败，继续使用其他方法
+                
+                # 4. 前向填充
+                if df[col].isnull().any():
+                    df[col] = df[col].bfill()
+                
+                # 5. 后向填充
+                if df[col].isnull().any():
+                    df[col] = df[col].ffill()
+                
+                # 6. 均值填充
                 if df[col].isnull().any():
                     df[col] = df[col].fillna(df[col].mean())
+                
+                # 7. 中位数填充（更稳健）
+                if df[col].isnull().any():
+                    df[col] = df[col].fillna(df[col].median())
         
         # 最终验证：确保没有NaN值
         remaining_nan = df.isnull().sum().sum()
         if remaining_nan > 0:
-            print(f"警告: 仍有 {remaining_nan} 个NaN值，将全部用0填充")
+            print(f"⚠️  警告: 经过多层插值后仍有 {remaining_nan} 个NaN值")
+            # 显示哪些列还有NaN
+            nan_cols = df.columns[df.isnull().any()].tolist()
+            print(f"   包含NaN的列: {nan_cols[:10]}{'...' if len(nan_cols) > 10 else ''}")
+            
+            # 最后使用0填充（作为最后的保险措施）
+            print(f"   使用0填充作为最后的处理措施")
             df = df.fillna(0)
+        else:
+            print("✅ 数据预处理成功：所有NaN值已通过插值方法处理")
         
         print(f"最终数据NaN检查: {df.isnull().sum().sum()} 个")
         
