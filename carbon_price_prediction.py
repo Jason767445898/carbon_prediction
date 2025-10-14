@@ -47,20 +47,20 @@ DEFAULT_CONFIG = {
     'validation_size': 0.1,
     'random_state': 42,
     'lstm_config': {
-        'units': [64, 32],
-        'dropout': 0.2,
+        'units': [72, 36],
+        'dropout': 0.16,
+        'epochs': 140,
+        'batch_size': 8
+        },
+    'transformer_config': {
+        'd_model': 16,
+        'num_heads': 2,
+        'num_layers': 2,
+        'dff': 64,
+        'dropout': 0.6,
         'epochs': 100,
         'batch_size': 8
-    },
-    'transformer_config': {
-        'd_model': 256,
-        'num_heads': 8,
-        'num_layers': 4,
-        'dff': 512,
-        'dropout': 0.1,
-        'epochs': 50,
-        'batch_size': 16
-    }
+        }
 }
 
 # =============================================================================
@@ -242,19 +242,19 @@ class CarbonPricePredictionSystem:
             'test_size': 0.2,
             'validation_size': 0.1,
             'lstm_config': {
-                'units': [64, 32],
-                'dropout': 0.2,
-                'epochs': 100,
+                'units': [72, 36],
+                'dropout': 0.16,
+                'epochs': 140,
                 'batch_size': 8
             },
             'transformer_config': {
-                'd_model': 256,
-                'num_heads': 8,
-                'num_layers': 4,
-                'dff': 512,
-                'dropout': 0.1,
-                'epochs': 50,
-                'batch_size': 16
+                'd_model': 16,
+                'num_heads': 2,
+                'num_layers': 2,
+                'dff': 64,
+                'dropout': 0.6,
+                'epochs': 100,
+                'batch_size': 8
             }
         }
     
@@ -989,7 +989,7 @@ class CarbonPricePredictionSystem:
             X_seq_train_scaled, y_seq_train_scaled,
             validation_data=(X_seq_val_scaled, y_seq_val_scaled),
             epochs=self.config['transformer_config']['epochs'],
-            batch_size=self.config['transformer_config'].get('batch_size', 32),
+            batch_size=self.config['transformer_config'].get('batch_size', 8),
             verbose=1,
             callbacks=[
                 tf.keras.callbacks.EarlyStopping(
