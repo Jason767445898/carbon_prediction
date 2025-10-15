@@ -334,6 +334,7 @@ def tune_joint_parameters():
         
         try:
             system = CarbonPricePredictionSystem(config=config)
+            # 使用真实数据文件
             system.load_data('data.dta')
             system.preprocess_data()
             system.train_models()

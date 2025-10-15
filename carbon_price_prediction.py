@@ -244,7 +244,7 @@ class CarbonPricePredictionSystem:
             'lstm_config': {
                 'units': [72, 36],
                 'dropout': 0.16,
-                'epochs': 140,
+                'epochs': 160,
                 'batch_size': 8
             },
             'transformer_config': {
