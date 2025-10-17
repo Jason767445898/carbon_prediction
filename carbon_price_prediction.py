@@ -41,7 +41,7 @@ FILE_NAME_FORMAT = {
 
 # 默认系统配置
 DEFAULT_CONFIG = {
-    'target_column': 'coal_price',  # 修正：与parameter_tuning.py保持一致
+    'target_column': 'coal_price',  
     'sequence_length': 60,
     'test_size': 0.2,
     'validation_size': 0.1,
