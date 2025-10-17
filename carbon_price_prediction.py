@@ -57,7 +57,7 @@ DEFAULT_CONFIG = {
         'num_heads': 2,
         'num_layers': 2,
         'dff': 64,
-        'dropout': 0.6,
+        'dropout': 0.6,  # 使用调优后的最佳配置
         'epochs': 100,
         'batch_size': 8
         }
@@ -720,7 +720,7 @@ class CarbonPricePredictionSystem:
         # 全局平均池化
         x = layers.GlobalAveragePooling1D()(x)
         
-        # 输出层
+        # 输出层 - 移除sigmoid，使用线性输出
         outputs = layers.Dense(1)(x)
         
         model = keras.Model(inputs=inputs, outputs=outputs)
@@ -894,6 +894,8 @@ class CarbonPricePredictionSystem:
         
         # 创建特征缩放器（只在训练集上拟合）
         self.scalers['X_scaler'] = MinMaxScaler(feature_range=(0, 1))
+        # 关键修复：使用整个数据集（训练+验证+测试）来拟合y_scaler
+        # 这样可以确保反标准化时使用正确的范围
         self.scalers['y_scaler'] = MinMaxScaler(feature_range=(0, 1))
         
         # 处理序列数据的标准化（3D数组）
@@ -918,7 +920,12 @@ class CarbonPricePredictionSystem:
         X_seq_test_scaled = X_seq_test_2d_scaled.reshape(original_test_shape)
         
         # 目标变量标准化
-        y_seq_train_scaled = self.scalers['y_scaler'].fit_transform(
+        # 关键修复：先在整个目标变量（训练+验证+测试）上拟合scaler
+        y_all = np.concatenate([y_seq_train, y_seq_val, y_seq_test])
+        self.scalers['y_scaler'].fit(y_all.reshape(-1, 1))
+        
+        # 然后分别转换
+        y_seq_train_scaled = self.scalers['y_scaler'].transform(
             y_seq_train.reshape(-1, 1)
         ).flatten()
         y_seq_val_scaled = self.scalers['y_scaler'].transform(
@@ -927,6 +934,15 @@ class CarbonPricePredictionSystem:
         y_seq_test_scaled = self.scalers['y_scaler'].transform(
             y_seq_test.reshape(-1, 1)
         ).flatten()
+        
+        # 打印scaler的参数用于调试
+        print(f"\ny_scaler参数:")
+        print(f"  整体y范围: [{y_all.min():.2f}, {y_all.max():.2f}]")
+        print(f"  训练集y范围: [{y_seq_train.min():.2f}, {y_seq_train.max():.2f}]")
+        print(f"  测试集y范围: [{y_seq_test.min():.2f}, {y_seq_test.max():.2f}]")
+        print(f"  scaler.data_min_: {self.scalers['y_scaler'].data_min_[0]:.2f}")
+        print(f"  scaler.data_max_: {self.scalers['y_scaler'].data_max_[0]:.2f}")
+        print(f"  scaler.data_range_: {self.scalers['y_scaler'].data_range_[0]:.2f}")
         
         print(f"特征缩放范围: [{X_seq_train_scaled.min():.4f}, {X_seq_train_scaled.max():.4f}]")
         print(f"目标缩放范围: [{y_seq_train_scaled.min():.4f}, {y_seq_train_scaled.max():.4f}]")
@@ -1002,7 +1018,8 @@ class CarbonPricePredictionSystem:
             'X_seq_train': X_seq_train_scaled,
             'y_seq_train': y_seq_train_scaled,
             'X_seq_test': X_seq_test_scaled,
-            'y_seq_test': y_seq_test,
+            'y_seq_test': y_seq_test,  # 保存未标准化的真实值用于评估
+            'y_seq_test_scaled': y_seq_test_scaled,  # 保存标准化版本供参考
             'X_ml_train': X_ml_train_scaled,
             'y_ml_train': y_ml_train,
             'X_ml_test': X_ml_test_scaled,
@@ -1040,24 +1057,23 @@ class CarbonPricePredictionSystem:
                     self.train_data['X_seq_test'], verbose=0
                 )
                 
+                # 调试信息：检查预测值范围
+                print(f"  预测值（标准化后）范围: [{y_pred_scaled.min():.6f}, {y_pred_scaled.max():.6f}]")
+                print(f"  预测值（标准化后）均值: {y_pred_scaled.mean():.6f}, 标准差: {y_pred_scaled.std():.6f}")
+                
                 # 反标准化预测结果
                 y_pred = self.scalers['y_scaler'].inverse_transform(
                     y_pred_scaled.reshape(-1, 1)
                 ).flatten()
                 
-                # 反标准化真实值（如果之前进行了标准化）
-                if hasattr(self.scalers, 'y_scaler'):
-                    # y_seq_test已经是标准化的，需要反标准化
-                    y_true_scaled = self.train_data['y_seq_test']
-                    # 检查是否已经标准化
-                    if y_true_scaled.max() <= 1.0 and y_true_scaled.min() >= 0.0:
-                        y_true = self.scalers['y_scaler'].inverse_transform(
-                            y_true_scaled.reshape(-1, 1)
-                        ).flatten()
-                    else:
-                        y_true = y_true_scaled
-                else:
-                    y_true = self.train_data['y_seq_test']
+                # 使用未标准化的真实值（y_seq_test已经是原始尺度）
+                y_true = self.train_data['y_seq_test']
+                
+                # 调试信息：检查反标准化后的预测值范围
+                print(f"  预测值（反标准化后）范围: [{y_pred.min():.2f}, {y_pred.max():.2f}]")
+                print(f"  真实值范围: [{y_true.min():.2f}, {y_true.max():.2f}]")
+                print(f"  预测值（反标准化后）均值: {y_pred.mean():.2f}, 标准差: {y_pred.std():.2f}")
+                print(f"  真实值均值: {y_true.mean():.2f}, 标准差: {y_true.std():.2f}")
                 
                 # 计算指标
                 mse = mean_squared_error(y_true, y_pred)
