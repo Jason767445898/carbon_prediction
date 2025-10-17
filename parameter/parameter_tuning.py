@@ -18,6 +18,12 @@ from carbon_price_prediction import CarbonPricePredictionSystem
 
 def create_tuning_log():
     """创建参数调优日志文件"""
+    # 确保输出目录存在
+    log_dir = '../outputs/logs'
+    os.makedirs(log_dir, exist_ok=True)
+    
+    log_file = os.path.join(log_dir, 'parameter_tuning.txt')
+    
     log_content = [
         "==========================================",
         "碳价格预测模型参数调优记录",
@@ -33,13 +39,15 @@ def create_tuning_log():
         ""
     ]
     
-    with open('parameter_tuning.txt', 'w', encoding='utf-8') as f:
+    with open(log_file, 'w', encoding='utf-8') as f:
         f.write('\n'.join(log_content))
     
-    print("已创建参数调优日志文件: parameter_tuning.txt")
+    print(f"已创建参数调优日志文件: {log_file}")
 
 def log_tuning_result(config, results, notes=""):
     """记录调优结果"""
+    log_file = '../outputs/logs/parameter_tuning.txt'
+    
     log_entry = [
         f"调优时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         "配置参数:",
@@ -60,10 +68,10 @@ def log_tuning_result(config, results, notes=""):
     log_entry.append("-" * 50)
     log_entry.append("")
     
-    with open('parameter_tuning.txt', 'a', encoding='utf-8') as f:
+    with open(log_file, 'a', encoding='utf-8') as f:
         f.write('\n'.join(log_entry))
     
-    print("已记录调优结果到 parameter_tuning.txt")
+    print(f"已记录调优结果到 {log_file}")
 
 def tune_joint_parameters():
     """联合调优LSTM和Transformer模型参数"""
@@ -334,8 +342,8 @@ def tune_joint_parameters():
         
         try:
             system = CarbonPricePredictionSystem(config=config)
-            # 使用真实数据文件
-            system.load_data('data.dta')
+            # 使用真实数据文件（相对于parameter目录的路径）
+            system.load_data('../data.dta')
             system.preprocess_data()
             system.train_models()
             results, _ = system.evaluate_models()
@@ -385,8 +393,13 @@ def main():
     print("  4. 实验量: 12组配置 (预计3小时)")
     print()
     
+    # 确保输出目录存在
+    log_dir = '../outputs/logs'
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, 'parameter_tuning.txt')
+    
     # 追加到现有日志
-    with open('parameter_tuning.txt', 'a', encoding='utf-8') as f:
+    with open(log_file, 'a', encoding='utf-8') as f:
         f.write("\n\n" + "="*60 + "\n")
         f.write("第五轮参数调优开始\n")
         f.write("="*60 + "\n")
@@ -410,6 +423,9 @@ def main():
     print("\n" + "="*60)
     print("参数调优完成 - 最佳配置")
     print("="*60)
+    
+    # 确保日志目录存在
+    log_file = '../outputs/logs/parameter_tuning.txt'
     
     final_log = [
         "\n" + "="*60,
@@ -441,7 +457,7 @@ def main():
         "="*60
     ]
     
-    with open('parameter_tuning.txt', 'a', encoding='utf-8') as f:
+    with open(log_file, 'a', encoding='utf-8') as f:
         f.write('\n'.join(final_log))
     
     print("\n" + "="*60)
@@ -469,7 +485,7 @@ def main():
             print("   ✅ 达到基本目标 (R²≥0.77)")
         else:
             print("   ⚠️ 需进一步优化")
-    print("\n📄 详细记录请查看: parameter_tuning.txt")
+    print(f"\n📄 详细记录请查看: {log_file}")
     print("="*60)
 
 if __name__ == "__main__":

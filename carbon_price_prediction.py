@@ -28,9 +28,9 @@ SAMPLE_DATA_FILE = 'carbon_price_prediction_test_data.xlsx'
 
 # 输出目录配置
 OUTPUT_DIRS = {
-    'txt': 'carbon_prediction_log_txt',
-    'excel': 'carbon_prediction_results_excel', 
-    'pic': 'carbon_prediction_results_pic'
+    'txt': 'outputs/logs',
+    'excel': 'outputs/reports', 
+    'pic': 'outputs/visualizations'
 }
 
 # 文件名格式配置
@@ -1660,6 +1660,7 @@ class CarbonPricePredictionSystem:
         log_content.append("碳价格预测系统运行日志")
         log_content.append("=" * 80)
         log_content.append(f"运行时间: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        log_content.append(f"运行ID: {self.run_name}")
         log_content.append("")
         
         # 系统环境信息
@@ -1734,10 +1735,10 @@ class CarbonPricePredictionSystem:
         
         # 文件输出信息
         log_content.append("📁 生成文件:")
-        log_content.append("   • carbon_prediction_report.xlsx - Excel报告")
-        log_content.append("   • carbon_prediction_detailed_report.txt - 详细文本报告")
-        log_content.append("   • carbon_prediction_runtime_log.txt - 运行日志")
-        log_content.append("   • carbon_prediction_results/ - 可视化图表目录")
+        log_content.append(f"   • {self.output_dirs['excel']}/{self.run_name}_report.xlsx - Excel报告")
+        log_content.append(f"   • {self.output_dirs['txt']}/{self.run_name}_detailed_report.txt - 详细文本报告")
+        log_content.append(f"   • {self.output_dirs['txt']}/{self.run_name}_runtime_log.txt - 运行日志")
+        log_content.append(f"   • {self.output_dirs['pic']}/ - 可视化图表目录")
         log_content.append("")
         
         # 运行状态
@@ -1987,11 +1988,10 @@ def main():
         if success:
             print("\n🎉 程序执行成功！")
             print("📁 生成文件:")
-            print("   • carbon_price_sample_data.xlsx - 示例数据")
-            print("   • carbon_prediction_report.xlsx - 完整Excel分析报告")
-            print("   • carbon_prediction_detailed_report.txt - 详细文本分析报告")
-            print("   • carbon_prediction_runtime_log.txt - 系统运行日志")
-            print("   • carbon_prediction_results/ - 可视化图表目录")
+            print(f"   • outputs/reports/{system.run_name}_report.xlsx - 完整Excel分析报告")
+            print(f"   • outputs/logs/{system.run_name}_detailed_report.txt - 详细文本分析报告")
+            print(f"   • outputs/logs/{system.run_name}_runtime_log.txt - 系统运行日志")
+            print(f"   • outputs/visualizations/ - 可视化图表目录")
             print("\n🔧 如何使用你自己的数据:")
             print("   1. 数据格式：Excel(.xlsx)或CSV(.csv)，第一列为日期")
             print("   2. 必需列：碳价格列（列名可为carbon_price、price、碳价格等）")
