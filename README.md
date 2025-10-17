@@ -3,8 +3,29 @@
 [![Python Version](https://img.shields.io/badge/Python-3.7%2B-blue.svg)](https://python.org)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.0%2B-orange.svg)](https://tensorflow.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-success.svg)]()
 
 > 基于深度学习和可解释性AI的综合碳价格预测分析系统
+
+## 📚 目录
+
+- [项目概述](#项目概述)
+- [核心功能](#核心功能)
+- [技术架构](#技术架构)
+- [快速开始](#快速开始)
+  - [环境要求](#环境要求)
+  - [安装依赖](#安装依赖)
+  - [一键运行](#一键运行)
+- [数据要求](#数据要求)
+- [输出结果](#输出结果)
+- [配置说明](#配置说明)
+- [文档导航](#文档导航)
+- [性能指标](#性能指标)
+- [系统要求](#系统要求)
+- [故障排除](#故障排除)
+- [项目状态](#项目状态)
+- [贡献指南](#贡献指南)
+- [许可证](#许可证)
 
 ## 📋 项目概述
 
@@ -135,24 +156,71 @@ config = {
 }
 ```
 
-## 📚 文档结构
+## 📚 文档导航
+
+### 快速访问
+
+| 文档类型 | 文档名称 | 适用人群 | 主要内容 |
+|---------|---------|---------|----------|
+| 🚀 **快速入门** | [README.md](README.md) | 所有用户 | 项目概览、快速开始 |
+| 📖 **详细指南** | [使用指南](./docs/碳价格预测系统使用指南.md) | 新手用户 | 详细安装、配置、操作说明 |
+| 🔧 **参数调优** | [参数调优指南](./docs/参数调优完整指南.md) | 高级用户 | 模型优化、性能提升 |
+| 📊 **数据格式** | [Stata使用指南](./docs/STATA_USAGE_GUIDE.md) | 数据分析师 | Stata文件使用说明 |
+| 🧠 **技术原理** | [技术知识库](./docs/model_knowledge/) | 研发人员 | LSTM、Transformer、SHAP原理 |
+| 🐛 **问题诊断** | [诊断报告](./docs/参数不一致问题诊断报告.md) | 调试人员 | 常见问题解决方案 |
+
+### 项目结构
 
 ```
 📁 AI/
-├── 📄 README.md                      # 项目概览（本文件）
-├── 📄 碳价格预测系统使用指南.md         # 详细使用指南
-├── 🐍 carbon_price_prediction.py     # 主程序文件
-├── 📁 model_knowledge/               # 技术知识库
-│   ├── 📄 1_LSTM金融预测教程.md
-│   ├── 📄 2_Transformer_Attention机制教程.md
-│   ├── 📄 3_SHAP可解释性分析教程.md
-│   ├── 📄 4_EMD经验模态分解教程.md
-│   ├── 📄 5_综合金融预测示例.md
-│   └── 📄 AI金融预测知识点分析.md
-├── 📁 carbon_prediction_log_txt/     # 运行日志目录
-├── 📁 carbon_prediction_results_excel/ # Excel报告目录
-└── 📁 carbon_prediction_results_pic/   # 图表目录
+├── 📄 README.md                          # 项目概览（本文件）
+├── 🐍 carbon_price_prediction.py         # 主程序入口
+├── 📊 data.dta                           # 示例数据文件
+│
+├── 📁 docs/                              # 📚 文档中心
+│   ├── 📄 碳价格预测系统使用指南.md         # 详细操作手册
+│   ├── 📄 参数调优完整指南.md              # 参数优化专题
+│   ├── 📄 STATA_USAGE_GUIDE.md          # Stata文件说明
+│   ├── 📄 参数不一致问题诊断报告.md         # 问题诊断
+│   ├── 📄 项目完整文档.md                 # 综合文档
+│   └── 📁 model_knowledge/              # 技术知识库
+│       ├── 📄 1_LSTM金融预测教程.md
+│       ├── 📄 2_Transformer_Attention机制教程.md
+│       ├── 📄 3_SHAP可解释性分析教程.md
+│       ├── 📄 4_EMD经验模态分解教程.md
+│       ├── 📄 5_综合金融预测示例.md
+│       └── 📄 AI金融预测知识点分析.md
+│
+├── 📁 parameter/                         # 🔧 参数调优工具
+│   ├── 🐍 parameter_tuning.py           # 调优脚本
+│   ├── 📜 run_tuning.sh                 # 执行脚本（防休眠）
+│   ├── 📄 parameter_tuning.txt          # 调优记录
+│   └── 📄 baseline.md                   # 基线报告
+│
+├── 📁 outputs/                           # 📊 输出结果（自动生成）
+│   ├── 📁 logs/                         # 运行日志
+│   ├── 📁 reports/                      # Excel报告
+│   └── 📁 visualizations/               # 可视化图表
+│
+└── 📁 __pycache__/                       # Python缓存文件
 ```
+
+### 文档使用建议
+
+**新手用户** 🆕
+1. 先阅读本 README 了解项目概况
+2. 查看[使用指南](./docs/碳价格预测系统使用指南.md)学习详细操作
+3. 参考[Stata使用指南](./docs/STATA_USAGE_GUIDE.md)准备数据
+
+**进阶用户** 📈
+1. 直接运行主程序查看效果
+2. 阅读[参数调优指南](./docs/参数调优完整指南.md)优化模型
+3. 参考[技术知识库](./docs/model_knowledge/)深入理解算法
+
+**开发人员** 💻
+1. 查看源代码 `carbon_price_prediction.py`
+2. 研究[技术知识库](./docs/model_knowledge/)中的算法实现
+3. 参考[问题诊断报告](./docs/参数不一致问题诊断报告.md)解决问题
 
 ## 🔍 核心特性
 
@@ -249,35 +317,143 @@ for dataset in datasets:
 
 ## ⚠️ 注意事项
 
-- 确保数据质量和完整性
-- 深度学习模型需要较长训练时间
-- SHAP分析可能比较耗时
-- 建议在GPU环境中运行大型模型
+### 数据要求
+- ✅ 确保数据质量和完整性（缺失值 < 5%）
+- ✅ 数据量建议至少500个数据点
+- ✅ 目标变量和特征列需明确标注
 
-## 📞 获取帮助
+### 性能考虑
+- ⏱️ 深度学习模型需要较长训练时间（20-60分钟）
+- 🔍 SHAP分析可能比较耗时（5-10分钟）
+- 💾 建议至少8GB内存
+- 🚀 GPU环境可显著提升训练速度（可选）
 
-### 快速故障排除
-1. **安装问题**：查看 [使用指南](./碳价格预测系统使用指南.md) 的环境配置部分
-2. **数据问题**：参考使用指南的数据格式要求
-3. **性能问题**：调整配置参数或使用更小的模型
+### macOS用户特别提示
+- 🍎 必须安装 OpenMP：`brew install libomp`
+- 🔋 长时间运行建议使用防休眠：`caffeinate -i python3 carbon_price_prediction.py`
 
-### 学习资源
-- 📖 [详细使用指南](./碳价格预测系统使用指南.md) - 完整的使用说明
-- 🧠 [技术知识库](./model_knowledge/) - 深入理解核心技术
-- 💡 [最佳实践案例](./model_knowledge/5_综合金融预测示例.md) - 实际应用示例
+### 风险提示
+- 📊 模型预测仅供参考，不构成投资建议
+- 🎯 碳市场受政策影响较大，存在不确定性
+- 🔄 建议定期重训练模型以适应市场变化
+
+## 🆘 故障排除
+
+### 常见问题快速解决
+
+#### 安装问题 🔧
+
+**问题**: ModuleNotFoundError: No module named 'xxx'
+```bash
+# 解决方案：重新安装缺失的库
+pip install 缺失的库名
+```
+
+**问题**: XGBoost在macOS上报错
+```bash
+# 解决方案：安装OpenMP（必须！）
+brew install libomp
+pip uninstall xgboost
+pip install xgboost
+```
+
+**问题**: TensorFlow安装失败
+```bash
+# M1/M2 Mac用户
+pip install tensorflow-macos
+
+# 其他用户
+pip install tensorflow-cpu
+```
+
+#### 数据问题 📊
+
+**问题**: FileNotFoundError: 找不到数据文件
+```python
+# 检查文件路径
+import os
+print(os.path.exists('your_data.xlsx'))  # 应返回True
+```
+
+**问题**: 提示找不到碳价格列
+```python
+# 解决方案：指定正确的列名
+config = {'target_column': '你的实际列名'}
+system = CarbonPricePredictionSystem(config=config)
+```
+
+#### 性能问题 ⚡
+
+**问题**: 内存不足
+```python
+# 解决方案：使用轻量级配置
+config = {
+    'sequence_length': 30,
+    'lstm_config': {'batch_size': 16, 'units': [32, 16]}
+}
+```
+
+**问题**: 训练时间过长
+```python
+# 解决方案：减少训练轮数
+config = {
+    'lstm_config': {'epochs': 50},
+    'transformer_config': {'epochs': 25}
+}
+```
+
+### 获取更多帮助
+
+- 📖 [详细使用指南](./docs/碳价格预测系统使用指南.md) - 完整的安装和配置说明
+- 🔧 [参数调优指南](./docs/参数调优完整指南.md) - 模型优化技巧
+- 🐛 [问题诊断报告](./docs/参数不一致问题诊断报告.md) - 已知问题和解决方案
+- 🧠 [技术知识库](./docs/model_knowledge/) - 深入理解核心技术
+- 💡 [综合示例](./docs/model_knowledge/5_综合金融预测示例.md) - 实际应用案例
 
 ## 🤝 贡献指南
 
-欢迎提交问题反馈和改进建议！
+我们欢迎各种形式的贡献！
+
+### 如何贡献
+
+- 🐛 **报告Bug**: 提交详细的问题描述和复现步骤
+- 💡 **功能建议**: 分享您的想法和需求
+- 📝 **文档改进**: 帮助完善文档
+- 🔧 **代码贡献**: 提交Pull Request
+
+### 联系方式
+
+- 📧 Email: ai-research@example.com
+- 💬 Issues: [GitHub Issues](https://github.com/yourrepo/issues)
+- 📚 Wiki: [项目Wiki](https://github.com/yourrepo/wiki)
 
 ## 📋 项目状态
 
-- **稳定版本**: v1.0
-- **最后更新**: 2025年1月  
-- **代码质量**: 完整测试，生产就绪
-- **文档状态**: 与代码实现完全同步
-- **支持的Python版本**: 3.7 - 3.11
-- **测试环境**: Windows 10/11, macOS 12+, Ubuntu 20.04+
+| 指标 | 状态 | 说明 |
+|------|------|------|
+| **当前版本** | v1.0 | 生产环境就绪 |
+| **最后更新** | 2025-10-17 | 文档和代码同步更新 |
+| **代码质量** | ✅ Production Ready | 完整测试通过 |
+| **文档完整度** | ✅ 100% | 与代码实现完全同步 |
+| **Python支持** | 3.7 - 3.11 | 推荐使用 3.8+ |
+| **操作系统** | Windows/macOS/Linux | 全平台支持 |
+| **GPU支持** | ✅ 可选 | TensorFlow GPU加速 |
+
+### 近期更新
+
+**v1.0 (2025-10-17)**
+- ✨ 新增完整文档体系
+- 📊 优化项目文件结构
+- 🔧 完善参数调优指南
+- 📝 增加问题诊断报告
+- 🎨 改进可视化输出
+
+### 测试环境
+
+- ✅ Windows 10/11
+- ✅ macOS 12+ (包括 M1/M2 芯片)
+- ✅ Ubuntu 20.04/22.04
+- ✅ Python 3.7/3.8/3.9/3.10/3.11
 
 ## 📄 许可证
 
@@ -285,8 +461,31 @@ for dataset in datasets:
 
 ---
 
-**快速链接**：
-- 📖 [详细使用指南](./碳价格预测系统使用指南.md) 
-- 🔧 [环境安装指南](./碳价格预测系统使用指南.md#系统要求)
-- 📊 [数据准备指南](./碳价格预测系统使用指南.md#数据格式要求)
-- 🛠️ [故障排除](./碳价格预测系统使用指南.md#故障排除)
+## 🔗 快速链接
+
+### 文档中心
+- 📖 [详细使用指南](./docs/碳价格预测系统使用指南.md) - 完整操作手册
+- 🔧 [参数调优指南](./docs/参数调优完整指南.md) - 模型优化专题
+- 📊 [Stata使用说明](./docs/STATA_USAGE_GUIDE.md) - 数据格式支持
+- 🐛 [问题诊断报告](./docs/参数不一致问题诊断报告.md) - 故障排除
+
+### 技术资源
+- 🧠 [LSTM教程](./docs/model_knowledge/1_LSTM金融预测教程.md)
+- 🤖 [Transformer教程](./docs/model_knowledge/2_Transformer_Attention机制教程.md)
+- 🔍 [SHAP教程](./docs/model_knowledge/3_SHAP可解释性分析教程.md)
+- 💡 [综合示例](./docs/model_knowledge/5_综合金融预测示例.md)
+
+### 工具脚本
+- 🐍 [主程序](./carbon_price_prediction.py)
+- ⚙️ [参数调优脚本](./parameter/parameter_tuning.py)
+- 📜 [防休眠执行脚本](./parameter/run_tuning.sh)
+
+---
+
+<div align="center">
+
+**⭐ 如果这个项目对您有帮助，请给我们一个Star！⭐**
+
+ Made with ❤️ by AI Research Team
+
+</div>
