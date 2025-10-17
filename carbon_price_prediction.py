@@ -41,7 +41,7 @@ FILE_NAME_FORMAT = {
 
 # 默认系统配置
 DEFAULT_CONFIG = {
-    'target_column': 'carbon_price',
+    'target_column': 'coal_price',  # 修正：与parameter_tuning.py保持一致
     'sequence_length': 60,
     'test_size': 0.2,
     'validation_size': 0.1,
@@ -209,18 +209,19 @@ class CarbonPricePredictionSystem:
         - 用于模型训练过程中的验证和调参
         
         lstm_config: LSTM模型配置
-        - units: 隐藏层单元数 [64, 32]
-        - dropout: 随机失活率 0.2
-        - epochs: 训练轮数 100
-        - batch_size: 批次大小 16
+        - units: 隐藏层单元数 [72, 36]
+        - dropout: 随机失活率 0.16
+        - epochs: 训练轮数 140
+        - batch_size: 批次大小 8
         
         transformer_config: Transformer模型配置
-        - d_model: 模型维度 256
-        - num_heads: 注意力头数 8
-        - num_layers: 编码器层数 4
-        - dff: 前馈网络维度 512
-        - dropout: 随机失活率 0.1
-        - epochs: 训练轮数 50
+        - d_model: 模型维度 16
+        - num_heads: 注意力头数 2
+        - num_layers: 编码器层数 2
+        - dff: 前馈网络维度 64
+        - dropout: 随机失活率 0.6
+        - epochs: 训练轮数 100
+        - batch_size: 批次大小 8
         
         💡 如何自定义配置：
         --------------------
@@ -235,28 +236,11 @@ class CarbonPricePredictionSystem:
             }
         }
         system = CarbonPricePredictionSystem(config=custom_config)
+        
+        ⚠️ 注意：此方法已废弃，请直接使用全局 DEFAULT_CONFIG 变量
         """
-        return {
-            'target_column': 'carbon_price',
-            'sequence_length': 60,
-            'test_size': 0.2,
-            'validation_size': 0.1,
-            'lstm_config': {
-                'units': [72, 36],
-                'dropout': 0.16,
-                'epochs': 160,
-                'batch_size': 8
-            },
-            'transformer_config': {
-                'd_model': 16,
-                'num_heads': 2,
-                'num_layers': 2,
-                'dff': 64,
-                'dropout': 0.6,
-                'epochs': 100,
-                'batch_size': 8
-            }
-        }
+        # 直接返回全局DEFAULT_CONFIG的副本，确保一致性
+        return DEFAULT_CONFIG.copy()
     
     def load_data(self, file_path, sheet_name=None):
         try:
