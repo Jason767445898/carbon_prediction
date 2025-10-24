@@ -41,24 +41,24 @@ FILE_NAME_FORMAT = {
 # 默认系统配置
 DEFAULT_CONFIG = {
     'target_column': 'coal_price',  
-    'sequence_length': 20,  # 进一步缩短序列长度
+    'sequence_length': 30,  # 中等序列长度
     'test_size': 0.2,
     'validation_size': 0.1,
     'random_state': 42,
     'lstm_config': {
-        'units': [50, 25],  # 减小模型容量
-        'dropout': 0.3,  # 增加正则化
-        'epochs': 200,
-        'batch_size': 32  # 增大批次
+        'units': [64, 32],  # 适中的模型容量
+        'dropout': 0.25,  # 适度正则化
+        'epochs': 150,
+        'batch_size': 16  # 平衡的批次大小
         },
     'transformer_config': {
-        'd_model': 16,  # 大幅减小模型维度
-        'num_heads': 2,
-        'num_layers': 1,
-        'dff': 32,  # 减小前馈网络
-        'dropout': 0.3,
-        'epochs': 200,
-        'batch_size': 32
+        'd_model': 32,  # 适中的模型维度
+        'num_heads': 4,
+        'num_layers': 2,
+        'dff': 64,  # 适中的前馈网络
+        'dropout': 0.2,
+        'epochs': 120,
+        'batch_size': 16
         }
 }
 
@@ -522,14 +522,15 @@ class CarbonPricePredictionSystem:
         train_end = int(n * (1 - test_size - val_size))
         val_end = int(n * (1 - test_size))
         
-        train_data = self.processed_data.iloc[:train_end]
-        val_data = self.processed_data.iloc[train_end:val_end]
-        test_data = self.processed_data.iloc[val_end:]
+        train_data = self.processed_data.iloc[:train_end].copy()
+        val_data = self.processed_data.iloc[train_end:val_end].copy()
+        test_data = self.processed_data.iloc[val_end:].copy()
         
         print(f"数据分割完成:")
         print(f"训练集: {len(train_data)} 样本")
         print(f"验证集: {len(val_data)} 样本")
         print(f"测试集: {len(test_data)} 样本")
+        print(f"数据分割比例: 训练 {len(train_data)/n*100:.1f}% | 验证 {len(val_data)/n*100:.1f}% | 测试 {len(test_data)/n*100:.1f}%")
         
         return train_data, val_data, test_data
     
@@ -551,9 +552,9 @@ class CarbonPricePredictionSystem:
         model.add(LSTM(
             units=config['units'][0],
             return_sequences=True,
-            kernel_regularizer=tf.keras.regularizers.l2(0.001),
-            recurrent_regularizer=tf.keras.regularizers.l2(0.001),
-            recurrent_dropout=0.1
+            kernel_regularizer=tf.keras.regularizers.l2(0.0005),
+            recurrent_regularizer=tf.keras.regularizers.l2(0.0005),
+            recurrent_dropout=0.05
         ))
         model.add(layers.BatchNormalization())
         model.add(Dropout(config['dropout']))
@@ -563,9 +564,9 @@ class CarbonPricePredictionSystem:
             model.add(LSTM(
                 units=config['units'][1],
                 return_sequences=False,
-                kernel_regularizer=tf.keras.regularizers.l2(0.001),
-                recurrent_regularizer=tf.keras.regularizers.l2(0.001),
-                recurrent_dropout=0.1
+                kernel_regularizer=tf.keras.regularizers.l2(0.0005),
+                recurrent_regularizer=tf.keras.regularizers.l2(0.0005),
+                recurrent_dropout=0.05
             ))
             model.add(layers.BatchNormalization())
             model.add(Dropout(config['dropout']))
@@ -574,7 +575,7 @@ class CarbonPricePredictionSystem:
         model.add(Dense(
             16, 
             activation='relu',
-            kernel_regularizer=tf.keras.regularizers.l2(0.001)
+            kernel_regularizer=tf.keras.regularizers.l2(0.0005)
         ))
         model.add(Dropout(config['dropout']))
         
@@ -583,8 +584,8 @@ class CarbonPricePredictionSystem:
         
         # 编译模型
         model.compile(
-            optimizer=Adam(learning_rate=0.0005, clipnorm=1.0),
-            loss='huber',  # 使用Huber损失，对异常值更鲁棒
+            optimizer=Adam(learning_rate=0.0008, clipnorm=1.0),
+            loss='mse',  # 使用MSE而非Huber，更稳定
             metrics=['mae', 'mse']
         )
         
@@ -870,24 +871,24 @@ class CarbonPricePredictionSystem:
         X_seq_test_2d_scaled = self.scalers['X_scaler'].transform(X_seq_test_2d)
         X_seq_test_scaled = X_seq_test_2d_scaled.reshape(original_test_shape)
         
-        # 目标变量标准化
-        y_all = np.concatenate([y_seq_train, y_seq_val, y_seq_test])
-        self.scalers['y_scaler'].fit(y_all.reshape(-1, 1))
+        # 目标变量标准化: 【改进】只依据训练集掩定
+        self.scalers['y_scaler'].fit(y_seq_train.reshape(-1, 1))
         
         y_seq_train_scaled = self.scalers['y_scaler'].transform(y_seq_train.reshape(-1, 1)).flatten()
         y_seq_val_scaled = self.scalers['y_scaler'].transform(y_seq_val.reshape(-1, 1)).flatten()
         y_seq_test_scaled = self.scalers['y_scaler'].transform(y_seq_test.reshape(-1, 1)).flatten()
         
         print(f"\ny_scaler参数:")
-        print(f"  整体y范围: [{y_all.min():.2f}, {y_all.max():.2f}]")
         print(f"  训练集y范围: [{y_seq_train.min():.2f}, {y_seq_train.max():.2f}]")
+        print(f"  验证集y范围: [{y_seq_val.min():.2f}, {y_seq_val.max():.2f}]")
         print(f"  测试集y范围: [{y_seq_test.min():.2f}, {y_seq_test.max():.2f}]")
         print(f"  scaler.data_min_: {self.scalers['y_scaler'].data_min_[0]:.2f}")
         print(f"  scaler.data_max_: {self.scalers['y_scaler'].data_max_[0]:.2f}")
         print(f"  scaler.data_range_: {self.scalers['y_scaler'].data_range_[0]:.2f}")
         
         print(f"特征缩放范围: [{X_seq_train_scaled.min():.4f}, {X_seq_train_scaled.max():.4f}]")
-        print(f"目标缩放范围: [{y_seq_train_scaled.min():.4f}, {y_seq_train_scaled.max():.4f}]")
+        print(f"目标缩放范围(训练集): [{y_seq_train_scaled.min():.4f}, {y_seq_train_scaled.max():.4f}]")
+        print(f"目标缩放范围(测试集): [{y_seq_test_scaled.min():.4f}, {y_seq_test_scaled.max():.4f}]")
         
         X_ml_train_scaled = X_ml_train
         X_ml_test_scaled = X_ml_test
