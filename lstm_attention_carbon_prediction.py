@@ -217,11 +217,22 @@ class LSTMAttentionCarbonPrediction:
         for window in [7, 14]:
             df[f'volatility_{window}'] = df[target].rolling(window, min_periods=1).std()
         
-        # 选择特征（排除目标列和额外衍生列）
+        # 选择特征（排除目标列、衍生列和数据泄露特征）
+        # 排除与目标变量直接相关的特征，防止数据泄露
+        leakage_features = [
+            'log_carbon_price_hb_ea',  # 目标变量的对数形式
+            'log_transactionamount_hb_ea',  # 可能包含未来信息的交易量
+            'log_transactionamount_hb_ea_sqr',  # 交易量的对数平方
+            'price_return',  # 衍生列
+            'price_diff'  # 衍生列
+        ]
+        
         feature_cols = [col for col in df.columns 
-                       if col != target and col not in ['price_return', 'price_diff']]
+                       if col != target and col not in leakage_features]
         
         self.feature_names = feature_cols
+        
+        print(f"   • Excluded leakage features: {[f for f in leakage_features if f in df.columns]}")
         self.processed_data = df
         
         print(f"✅ Data Preprocessing Completed")
