@@ -47,15 +47,19 @@ tf.random.set_seed(42)
 CONFIG = {
     'data_file': 'data.dta',
     'target_column': 'carbon_price_hb_ea',  # 碳价格列
-    'sequence_length': 30,  # 序列长度
+    'sequence_length': 90,  # 进一步增加序列长度以捕获更长趋势
     'test_size': 0.2,
     'validation_size': 0.1,
-    'epochs': 100,
-    'batch_size': 16,
-    'learning_rate': 0.001,
-    'lstm_units': 64,
-    'attention_dim': 32,
-    'dropout_rate': 0.2,
+    'epochs': 300,  # 增加训练轮数
+    'batch_size': 16,  # 减小批次以增加更新频率
+    'learning_rate': 0.0001,  # 降低初始学习率
+    'lstm_units': 256,  # 显著增加LSTM单元数
+    'lstm_units_2': 128,  # 第二层LSTM单元数
+    'lstm_units_3': 64,  # 添加第三层LSTM
+    'attention_dim': 128,  # 增加注意力维度
+    'dropout_rate': 0.4,  # 增加dropout防止过拟合
+    'l2_reg': 0.001,  # L2正则化系数
+    'gradient_clip': 1.0,  # 梯度裁剪阈值
 }
 
 # 输出目录
@@ -82,31 +86,112 @@ def create_attention_layer(input_tensor, attention_dim):
 
 def build_lstm_attention_model(sequence_length, n_features, lstm_units, attention_dim):
     """
-    构建 LSTM + Attention 组合模型
+    构建深层LSTM + Attention组合模型（三层LSTM + 增强正则化）
     """
     inputs = layers.Input(shape=(sequence_length, n_features))
     
-    # LSTM层
-    lstm_out = layers.LSTM(lstm_units, return_sequences=True, 
-                          dropout=CONFIG['dropout_rate'])(inputs)
-    lstm_out = layers.LSTM(lstm_units//2, return_sequences=True,
-                          dropout=CONFIG['dropout_rate'])(lstm_out)
+    # 第一层LSTM - 最大容量
+    lstm_out = layers.LSTM(
+        CONFIG['lstm_units'], 
+        return_sequences=True,
+        dropout=0.2,  # LSTM内部dropout
+        recurrent_dropout=0.1,
+        kernel_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg']),
+        recurrent_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg'])
+    )(inputs)
+    lstm_out = layers.BatchNormalization()(lstm_out)
+    
+    # 第二层LSTM - 中等容量
+    lstm_out = layers.LSTM(
+        CONFIG['lstm_units_2'], 
+        return_sequences=True,
+        dropout=0.2,
+        recurrent_dropout=0.1,
+        kernel_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg']),
+        recurrent_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg'])
+    )(lstm_out)
+    lstm_out = layers.BatchNormalization()(lstm_out)
+    
+    # 第三层LSTM - 较小容量
+    lstm_out = layers.LSTM(
+        CONFIG['lstm_units_3'], 
+        return_sequences=True,
+        dropout=0.2,
+        recurrent_dropout=0.1,
+        kernel_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg']),
+        recurrent_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg'])
+    )(lstm_out)
+    lstm_out = layers.BatchNormalization()(lstm_out)
     
     # Attention层
     attention_out = create_attention_layer(lstm_out, attention_dim)
     
-    # 全连接层
-    dense = layers.Dense(32, activation='relu')(attention_out)
+    # 更深的全连接层
+    dense = layers.Dense(128, activation='relu', 
+                        kernel_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg']))(attention_out)
+    dense = layers.BatchNormalization()(dense)
     dense = layers.Dropout(CONFIG['dropout_rate'])(dense)
-    dense = layers.Dense(16, activation='relu')(dense)
+    
+    dense = layers.Dense(64, activation='relu',
+                        kernel_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg']))(dense)
+    dense = layers.BatchNormalization()(dense)
+    dense = layers.Dropout(CONFIG['dropout_rate'])(dense)
+    
+    dense = layers.Dense(32, activation='relu',
+                        kernel_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg']))(dense)
+    dense = layers.Dropout(CONFIG['dropout_rate'] / 2)(dense)
     
     # 输出层
     outputs = layers.Dense(1)(dense)
     
+    # 自定义方向感知损失函数（修复NaN问题）
+    def directional_loss(y_true, y_pred):
+        # Huber损失（对异常值鲁棒）
+        huber = tf.keras.losses.Huber(delta=1.0)(y_true, y_pred)
+        
+        # 方向损失：惩罚预测方向错误（仅当batch大小>1时计算）
+        batch_size = tf.shape(y_true)[0]
+        
+        def compute_direction_loss():
+            true_diff = y_true[1:] - y_true[:-1]
+            pred_diff = y_pred[1:] - y_pred[:-1]
+            
+            # 使用符号函数并添加epsilon避免除零
+            true_direction = tf.sign(true_diff + 1e-10)
+            pred_direction = tf.sign(pred_diff + 1e-10)
+            
+            # 方向匹配度（1表示匹配，0表示不匹配）
+            direction_match = tf.cast(tf.equal(true_direction, pred_direction), tf.float32)
+            direction_error = 1.0 - tf.reduce_mean(direction_match)
+            
+            return direction_error
+        
+        # 只有当batch_size>1时才计算方向损失
+        direction_component = tf.cond(
+            batch_size > 1,
+            compute_direction_loss,
+            lambda: 0.0
+        )
+        
+        # 组合损失：80% Huber + 20% 方向（降低方向权重避免NaN）
+        total_loss = 0.8 * huber + 0.2 * direction_component
+        
+        # 确保输出不为NaN
+        return tf.where(tf.math.is_nan(total_loss), huber, total_loss)
+    
+    # 学习率调度：Cosine Decay with Warmup
+    lr_schedule = tf.keras.optimizers.schedules.CosineDecay(
+        initial_learning_rate=CONFIG['learning_rate'],
+        decay_steps=CONFIG['epochs'] * 50,  # 假设每个epoch约50步
+        alpha=0.05  # 最终学习率为初始值的5%
+    )
+    
     model = Model(inputs=inputs, outputs=outputs)
-    model.compile(optimizer=Adam(learning_rate=CONFIG['learning_rate']),
-                  loss='mse',
-                  metrics=['mae', 'mse'])
+    model.compile(
+        optimizer=Adam(learning_rate=lr_schedule, clipnorm=CONFIG['gradient_clip']),
+        loss=directional_loss,
+        metrics=['mae', 'mse']
+    )
     
     return model
 
@@ -205,17 +290,47 @@ class LSTMAttentionCarbonPrediction:
         
         print(f"   • Final shape: {df.shape}")
         
-        # 特征工程
-        df['price_return'] = df[target].pct_change()
-        df['price_diff'] = df[target].diff()
+        # 特征工程 - 增强版（使用shift避免数据泄露）
+        print("   • Creating lag-shifted technical indicators to prevent data leakage...")
         
-        # 移动平均
-        for window in [5, 10, 20]:
-            df[f'ma_{window}'] = df[target].rolling(window, min_periods=1).mean()
+        # 基础滞后特征
+        for lag in [1, 2, 3, 5, 7, 10]:
+            df[f'price_lag_{lag}'] = df[target].shift(lag)
         
-        # 波动率
-        for window in [7, 14]:
-            df[f'volatility_{window}'] = df[target].rolling(window, min_periods=1).std()
+        # 价格变化 - 使用shift(1)确保不包含当前值
+        df['price_return'] = df[target].pct_change().shift(1)
+        df['price_diff'] = df[target].diff().shift(1)
+        
+        # 移动平均 - 使用shift(1)避免数据泄露
+        for window in [5, 10, 20, 30, 60]:
+            df[f'ma_{window}'] = df[target].rolling(window, min_periods=1).mean().shift(1)
+            df[f'ma_{window}_ratio'] = df[target].shift(1) / (df[f'ma_{window}'] + 1e-10)
+        
+        # 指数移动平均 - 使用shift(1)
+        for span in [12, 26]:
+            df[f'ema_{span}'] = df[target].ewm(span=span, adjust=False).mean().shift(1)
+            df[f'ema_{span}_ratio'] = df[target].shift(1) / (df[f'ema_{span}'] + 1e-10)
+        
+        # 波动率 - 使用shift(1)
+        for window in [7, 14, 30]:
+            df[f'volatility_{window}'] = df[target].rolling(window, min_periods=1).std().shift(1)
+            df[f'volatility_{window}_ratio'] = df[f'volatility_{window}'] / (df[target].shift(1) + 1e-10)
+        
+        # 价格动量 - 使用shift确保使用历史数据
+        for period in [5, 10, 20]:
+            df[f'momentum_{period}'] = df[target].shift(1).diff(period)
+        
+        # 价格变化率 - 使用shift
+        for period in [5, 10, 20]:
+            df[f'roc_{period}'] = df[target].shift(1).pct_change(period)
+        
+        # RSI指标 - 使用shift(1)
+        for period in [14, 28]:
+            delta = df[target].diff()
+            gain = delta.where(delta > 0, 0).rolling(period, min_periods=1).mean().shift(1)
+            loss = -delta.where(delta < 0, 0).rolling(period, min_periods=1).mean().shift(1)
+            rs = gain / (loss + 1e-10)
+            df[f'rsi_{period}'] = 100 - (100 / (1 + rs))
         
         # 选择特征（排除目标列、衍生列和数据泄露特征）
         # 排除与目标变量直接相关的特征，防止数据泄露
@@ -335,12 +450,28 @@ class LSTMAttentionCarbonPrediction:
         print("\n模型架构:")
         self.model.summary()
         
-        # 训练回调
+        # 训练回调 - 优化版
         callbacks = [
-            EarlyStopping(monitor='val_loss', patience=20, 
-                         restore_best_weights=True, verbose=1),
-            ReduceLROnPlateau(monitor='val_loss', factor=0.5, 
-                             patience=10, min_lr=1e-7, verbose=1)
+            EarlyStopping(
+                monitor='val_loss', 
+                patience=40,  # 进一步增加耐心
+                restore_best_weights=True, 
+                verbose=1,
+                min_delta=1e-5
+            ),
+            ReduceLROnPlateau(
+                monitor='val_loss', 
+                factor=0.5, 
+                patience=20,  # 进一步增加耐心
+                min_lr=1e-8, 
+                verbose=1
+            ),
+            tf.keras.callbacks.ModelCheckpoint(
+                filepath=os.path.join(OUTPUT_DIR, 'models', 'best_model.keras'),
+                monitor='val_loss',
+                save_best_only=True,
+                verbose=0
+            )
         ]
         
         # 训练
