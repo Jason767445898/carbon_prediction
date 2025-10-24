@@ -20,7 +20,6 @@
 
 # =============================================================================
 # 全局配置和路径设置
-# =============================================================================
 
 # 默认数据文件路径
 DEFAULT_DATA_FILE = 'data.dta'
@@ -42,30 +41,28 @@ FILE_NAME_FORMAT = {
 # 默认系统配置
 DEFAULT_CONFIG = {
     'target_column': 'coal_price',  
-    'sequence_length': 60,
+    'sequence_length': 20,  # 进一步缩短序列长度
     'test_size': 0.2,
     'validation_size': 0.1,
     'random_state': 42,
     'lstm_config': {
-        'units': [72, 36],
-        'dropout': 0.16,
-        'epochs': 140,
-        'batch_size': 8
+        'units': [50, 25],  # 减小模型容量
+        'dropout': 0.3,  # 增加正则化
+        'epochs': 200,
+        'batch_size': 32  # 增大批次
         },
     'transformer_config': {
-        'd_model': 16,
+        'd_model': 16,  # 大幅减小模型维度
         'num_heads': 2,
-        'num_layers': 2,
-        'dff': 64,
-        'dropout': 0.6,  # 使用调优后的最佳配置
-        'epochs': 100,
-        'batch_size': 8
+        'num_layers': 1,
+        'dff': 32,  # 减小前馈网络
+        'dropout': 0.3,
+        'epochs': 200,
+        'batch_size': 32
         }
 }
 
-# =============================================================================
 # 导入必要的库
-# =============================================================================
 
 import numpy as np
 import pandas as pd
@@ -184,62 +181,7 @@ class CarbonPricePredictionSystem:
             os.makedirs(dir_path, exist_ok=True)
         
     def _default_config(self):
-        """
-        默认配置
-        
-        🔧 配置参数说明：
-        =================
-        
-        target_column: 目标列名（碳价格列）
-        - 默认: 'carbon_price'
-        - 如果你的数据列名不同，需要修改此参数
-        - 常见列名: 'price', '碳价格', 'carbon_price_eur', 'emission_price' 等
-        
-        sequence_length: 时间序列长度
-        - 默认: 60 (天)
-        - 用于LSTM和Transformer模型的输入序列长度
-        - 建议范围: 30-120，取决于数据频率和预测时间跨度
-        
-        test_size: 测试集比例
-        - 默认: 0.2 (20%)
-        - 用于最终模型性能评估的数据比例
-        
-        validation_size: 验证集比例
-        - 默认: 0.1 (10%)
-        - 用于模型训练过程中的验证和调参
-        
-        lstm_config: LSTM模型配置
-        - units: 隐藏层单元数 [72, 36]
-        - dropout: 随机失活率 0.16
-        - epochs: 训练轮数 140
-        - batch_size: 批次大小 8
-        
-        transformer_config: Transformer模型配置
-        - d_model: 模型维度 16
-        - num_heads: 注意力头数 2
-        - num_layers: 编码器层数 2
-        - dff: 前馈网络维度 64
-        - dropout: 随机失活率 0.6
-        - epochs: 训练轮数 100
-        - batch_size: 批次大小 8
-        
-        💡 如何自定义配置：
-        --------------------
-        custom_config = {
-            'target_column': '你的列名',     # 修改目标列名
-            'sequence_length': 90,           # 增加序列长度
-            'test_size': 0.15,              # 调整测试集比例
-            'lstm_config': {
-                'units': [128, 64, 32],      # 更复杂的网络结构
-                'epochs': 200,               # 更多训练轮数
-                'batch_size': 16             # 更小的批次大小
-            }
-        }
-        system = CarbonPricePredictionSystem(config=custom_config)
-        
-        ⚠️ 注意：此方法已废弃，请直接使用全局 DEFAULT_CONFIG 变量
-        """
-        # 直接返回全局DEFAULT_CONFIG的副本，确保一致性
+        """返回默认配置"""
         return DEFAULT_CONFIG.copy()
     
     def load_data(self, file_path, sheet_name=None):
@@ -306,37 +248,7 @@ class CarbonPricePredictionSystem:
             raise
     
     def create_sample_data(self, start_date='2020-01-01', end_date='2023-12-31', save_path=None):
-        """
-        创建示例碳价格数据
-        
-        📊 此函数用于生成演示数据，如果你有自己的数据，可以跳过此步
-        ================================================================
-        
-        参数:
-            start_date: 开始日期（默认:'2020-01-01'）
-            end_date: 结束日期（默认:'2023-12-31'）
-            save_path: 保存路径（可选）
-        
-        🔧 生成的示例数据包含：
-        ---------------------------
-        - carbon_price: 碳价格（目标变量）
-        - gdp_growth: GDP增长率
-        - industrial_production: 工业生产指数
-        - oil_price: 石油价格
-        - gas_price: 天然气价格
-        - electricity_demand: 电力需求
-        - temperature: 温度
-        - policy_impact: 政策影响指数
-        - tech_innovation: 技术创新指数
-        - emissions: 碳排放量
-        - 以及各种技术指标（滞后、移动平均、波动率等）
-        
-        💡 如果你有自己的数据：
-        -------------------------
-        1. 跳过此函数，直接使用 load_data() 加载你的数据
-        2. 确保你的数据包含类似的列结构
-        3. 或者参考此函数生成的数据格式来准备你的数据
-        """
+        """创建示例碳价格数据"""
         print("创建示例碳价格数据...")
         
         dates = pd.date_range(start=start_date, end=end_date, freq='D')
@@ -439,7 +351,7 @@ class CarbonPricePredictionSystem:
         # 基础特征工程
         target_col = self.config['target_column']
         
-        # 首先检查并处理原始数据中的NaN值
+        # 处理原始数据中的NaN值
         print(f"原始数据NaN统计: {df.isnull().sum().sum()} 个")
         
         # 识别并移除全为NaN的列
@@ -449,7 +361,7 @@ class CarbonPricePredictionSystem:
             print(f"   这些列将被移除，因为无法通过插值恢复")
             df = df.drop(columns=null_cols)
         
-        # 识别NaN比例过高的列（超过80%）
+        # 移除NaN比例过高的列（超过80%）
         high_nan_cols = []
         for col in df.columns:
             nan_ratio = df[col].isnull().sum() / len(df)
@@ -466,29 +378,18 @@ class CarbonPricePredictionSystem:
             df = df.drop(columns=cols_to_drop)
             print(f"   已移除 {len(cols_to_drop)} 个低质量列")
         
-        # 使用多种插值方法填充原始数据中的NaN（更稳健的方法）
+        # 使用多层次插值法填充NaN
         for col in df.columns:
             if df[col].isnull().any():
-                # 1. 首先尝试线性插值（双向）
                 df[col] = df[col].interpolate(method='linear', limit_direction='both')
-                
-                # 2. 对于首尾的NaN值，使用多项式插值
                 if df[col].isnull().any():
                     df[col] = df[col].interpolate(method='polynomial', order=2, limit_direction='both')
-                
-                # 3. 使用前向填充处理剩余的NaN
                 if df[col].isnull().any():
                     df[col] = df[col].bfill()
-                
-                # 4. 使用后向填充处理剩余的NaN
                 if df[col].isnull().any():
                     df[col] = df[col].ffill()
-                
-                # 5. 如果还有NaN（极端情况），用列均值填充
                 if df[col].isnull().any():
                     df[col] = df[col].fillna(df[col].mean())
-                
-                # 6. 最后的保险措施：用中位数填充
                 if df[col].isnull().any():
                     df[col] = df[col].fillna(df[col].median())
         
@@ -541,50 +442,34 @@ class CarbonPricePredictionSystem:
         print(f"特征工程后NaN统计: {df.isnull().sum().sum()} 个")
         
         # 再次使用多层次插值法处理衍生特征产生的NaN
+        # 再次插值处理衡生特征产生的NaN
         for col in df.columns:
             if df[col].isnull().any():
-                # 1. 线性插值（双向）
                 df[col] = df[col].interpolate(method='linear', limit_direction='both')
-                
-                # 2. 时间序列插值（针对时间相关的特征）
                 if df[col].isnull().any():
                     try:
                         df[col] = df[col].interpolate(method='time')
                     except:
-                        pass  # 如果时间插值失败，继续使用其他方法
-                
-                # 3. 样条插值（更平滑）
+                        pass
                 if df[col].isnull().any():
                     try:
                         df[col] = df[col].interpolate(method='spline', order=3, limit_direction='both')
                     except:
-                        pass  # 如果样条插值失败，继续使用其他方法
-                
-                # 4. 前向填充
+                        pass
                 if df[col].isnull().any():
                     df[col] = df[col].bfill()
-                
-                # 5. 后向填充
                 if df[col].isnull().any():
                     df[col] = df[col].ffill()
-                
-                # 6. 均值填充
                 if df[col].isnull().any():
                     df[col] = df[col].fillna(df[col].mean())
-                
-                # 7. 中位数填充（更稳健）
                 if df[col].isnull().any():
                     df[col] = df[col].fillna(df[col].median())
         
-        # 最终验证：确保没有NaN值
         remaining_nan = df.isnull().sum().sum()
         if remaining_nan > 0:
             print(f"⚠️  警告: 经过多层插值后仍有 {remaining_nan} 个NaN值")
-            # 显示哪些列还有NaN
             nan_cols = df.columns[df.isnull().any()].tolist()
             print(f"   包含NaN的列: {nan_cols[:10]}{'...' if len(nan_cols) > 10 else ''}")
-            
-            # 最后使用0填充（作为最后的保险措施）
             print(f"   使用0填充作为最后的处理措施")
             df = df.fillna(0)
         else:
@@ -605,7 +490,6 @@ class CarbonPricePredictionSystem:
         
         print(f"预处理完成，数据形状: {df.shape}")
         print(f"特征数量: {len(feature_cols)}")
-        # 只显示前10个特征以避免输出过长
         display_features = feature_cols[:10] + (['...'] if len(feature_cols) > 10 else [])
         print(f"特征列表: {display_features}")
         
@@ -650,7 +534,7 @@ class CarbonPricePredictionSystem:
         return train_data, val_data, test_data
     
     def build_lstm_model(self):
-        """构建LSTM模型"""
+        """构建LSTM模型（优化版：更强的正则化）"""
         print("构建LSTM模型...")
         
         config = self.config['lstm_config']
@@ -659,30 +543,49 @@ class CarbonPricePredictionSystem:
         
         model = Sequential()
         
+        # 输入层BatchNormalization
+        model.add(layers.InputLayer(input_shape=(seq_length, n_features)))
+        model.add(layers.BatchNormalization())
+        
         # 第一层LSTM
         model.add(LSTM(
             units=config['units'][0],
             return_sequences=True,
-            input_shape=(seq_length, n_features)
+            kernel_regularizer=tf.keras.regularizers.l2(0.001),
+            recurrent_regularizer=tf.keras.regularizers.l2(0.001),
+            recurrent_dropout=0.1
         ))
+        model.add(layers.BatchNormalization())
         model.add(Dropout(config['dropout']))
         
         # 第二层LSTM
         if len(config['units']) > 1:
             model.add(LSTM(
                 units=config['units'][1],
-                return_sequences=False
+                return_sequences=False,
+                kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                recurrent_regularizer=tf.keras.regularizers.l2(0.001),
+                recurrent_dropout=0.1
             ))
+            model.add(layers.BatchNormalization())
             model.add(Dropout(config['dropout']))
         
+        # 全连接层
+        model.add(Dense(
+            16, 
+            activation='relu',
+            kernel_regularizer=tf.keras.regularizers.l2(0.001)
+        ))
+        model.add(Dropout(config['dropout']))
+        
         # 输出层
-        model.add(Dense(1))
+        model.add(Dense(1, activation='linear'))
         
         # 编译模型
         model.compile(
-            optimizer=Adam(learning_rate=0.001),
-            loss='mse',
-            metrics=['mae']
+            optimizer=Adam(learning_rate=0.0005, clipnorm=1.0),
+            loss='huber',  # 使用Huber损失，对异常值更鲁棒
+            metrics=['mae', 'mse']
         )
         
         print(f"LSTM模型架构:")
@@ -691,8 +594,8 @@ class CarbonPricePredictionSystem:
         return model
     
     def build_transformer_model(self):
-        """构建Transformer模型"""
-        print("构建Transformer模型...")
+        """构建Transformer模型（极简版：最小化过拟合风险）"""
+        print("构建极简版Transformer模型...")
         
         config = self.config['transformer_config']
         seq_length = self.config['sequence_length']
@@ -701,40 +604,54 @@ class CarbonPricePredictionSystem:
         # 输入层
         inputs = layers.Input(shape=(seq_length, n_features))
         
-        # 投影到d_model维度
-        x = layers.Dense(config['d_model'])(inputs)
+        # 输入层归一化和投影
+        x = layers.LayerNormalization(epsilon=1e-6)(inputs)
+        x = layers.Dense(
+            config['d_model'],
+            kernel_initializer=tf.keras.initializers.GlorotUniform(),
+            kernel_regularizer=tf.keras.regularizers.l2(0.01)  # 强正则化
+        )(x)
         
-        # 位置编码
+        # 位置编码（缩小权重）
         x = self._add_positional_encoding(x, seq_length, config['d_model'])
+        x = layers.Dropout(config['dropout'])(x)
         
-        # Transformer编码器层
-        for _ in range(config['num_layers']):
-            x = self._transformer_encoder(
-                x, 
-                config['d_model'], 
-                config['num_heads'], 
-                config['dff'],
-                config['dropout']
-            )
+        # 单层Transformer
+        x = self._transformer_encoder(
+            x, 
+            config['d_model'], 
+            config['num_heads'], 
+            config['dff'],
+            config['dropout'],
+            layer_name='transformer_layer_0'
+        )
         
-        # 全局平均池化
+        # 层归一化
+        x = layers.LayerNormalization(epsilon=1e-6)(x)
+        
+        # 全局平均池化（更稳定）
         x = layers.GlobalAveragePooling1D()(x)
         
-        # 输出层 - 移除sigmoid，使用线性输出
-        outputs = layers.Dense(1)(x)
+        # 单层Dense直接输出
+        outputs = layers.Dense(
+            1, 
+            activation='linear',
+            kernel_initializer=tf.keras.initializers.GlorotUniform(),
+            kernel_regularizer=tf.keras.regularizers.l2(0.01)
+        )(x)
         
         model = keras.Model(inputs=inputs, outputs=outputs)
         
-        # 自定义学习率调度
-        learning_rate = self._create_lr_schedule(config['d_model'])
+        # 优化器：更保守的学习率
         optimizer = keras.optimizers.Adam(
-            learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9
+            learning_rate=0.0003,
+            clipnorm=0.5
         )
         
         model.compile(
             optimizer=optimizer,
-            loss='mse',
-            metrics=['mae']
+            loss='huber',  # Huber损失更鲁棒
+            metrics=['mae', 'mse']
         )
         
         print(f"Transformer模型架构:")
@@ -760,41 +677,84 @@ class CarbonPricePredictionSystem:
         pos_encoding = angle_rads[np.newaxis, ...]
         pos_encoding = tf.cast(pos_encoding, dtype=tf.float32)
         
-        return x + pos_encoding
+        return x + pos_encoding * 0.1
     
-    def _transformer_encoder(self, x, d_model, num_heads, dff, dropout_rate):
-        """Transformer编码器层"""
-        # 多头注意力
+    def _transformer_encoder(self, x, d_model, num_heads, dff, dropout_rate, layer_name='transformer'):
+        """Transformer编码器层（极简版，强正则化）"""
+        # Pre-LayerNorm架构
+        
+        # 1. 多头自注意力
+        attn_input = layers.LayerNormalization(epsilon=1e-6)(x)
+        
         attn_output = layers.MultiHeadAttention(
-            num_heads=num_heads, key_dim=d_model
-        )(x, x)
+            num_heads=num_heads,
+            key_dim=d_model // num_heads,
+            dropout=dropout_rate,
+            kernel_regularizer=tf.keras.regularizers.l2(0.01),
+            name=f'{layer_name}_mha'
+        )(attn_input, attn_input)
+        
         attn_output = layers.Dropout(dropout_rate)(attn_output)
-        out1 = layers.LayerNormalization(epsilon=1e-6)(x + attn_output)
+        x = layers.Add()([x, attn_output * 0.5])  # 缩放残差连接
         
-        # 前馈网络
-        ffn_output = layers.Dense(dff, activation='relu')(out1)
-        ffn_output = layers.Dense(d_model)(ffn_output)
+        # 2. 前馈网络
+        ffn_input = layers.LayerNormalization(epsilon=1e-6)(x)
+        
+        ffn_output = layers.Dense(
+            dff,
+            activation='relu',  # 使用ReLU而非GELU，更简单
+            kernel_regularizer=tf.keras.regularizers.l2(0.01),
+            name=f'{layer_name}_ffn_dense1'
+        )(ffn_input)
+        
         ffn_output = layers.Dropout(dropout_rate)(ffn_output)
-        out2 = layers.LayerNormalization(epsilon=1e-6)(out1 + ffn_output)
         
-        return out2
+        ffn_output = layers.Dense(
+            d_model,
+            kernel_regularizer=tf.keras.regularizers.l2(0.01),
+            name=f'{layer_name}_ffn_dense2'
+        )(ffn_output)
+        
+        ffn_output = layers.Dropout(dropout_rate)(ffn_output)
+        output = layers.Add()([x, ffn_output * 0.5])  # 缩放残差连接
+        
+        return output
     
-    def _create_lr_schedule(self, d_model, warmup_steps=4000):
-        """创建学习率调度"""
-        class CustomSchedule(keras.optimizers.schedules.LearningRateSchedule):
-            def __init__(self, d_model, warmup_steps=4000):
-                super(CustomSchedule, self).__init__()
-                self.d_model = d_model
-                self.d_model = tf.cast(self.d_model, tf.float32)
+    def _create_lr_schedule(self, d_model, warmup_steps=1000):
+        """创建学习率调度（改进版：余弦退火）"""
+        class WarmupCosineDecay(keras.optimizers.schedules.LearningRateSchedule):
+            def __init__(self, initial_learning_rate=0.001, warmup_steps=1000, total_steps=10000):
+                super(WarmupCosineDecay, self).__init__()
+                self.initial_learning_rate = initial_learning_rate
                 self.warmup_steps = warmup_steps
+                self.total_steps = total_steps
             
             def __call__(self, step):
                 step = tf.cast(step, tf.float32)
-                arg1 = tf.math.rsqrt(step)
-                arg2 = step * (self.warmup_steps ** -1.5)
-                return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+                warmup_steps = tf.cast(self.warmup_steps, tf.float32)
+                total_steps = tf.cast(self.total_steps, tf.float32)
+                
+                # Warmup阶段：线性增加学习率
+                warmup_lr = (step / warmup_steps) * self.initial_learning_rate
+                
+                # Cosine decay阶段
+                decay_steps = total_steps - warmup_steps
+                decay_step = tf.minimum(step - warmup_steps, decay_steps)
+                cosine_decay = 0.5 * (1 + tf.cos(np.pi * decay_step / decay_steps))
+                decay_lr = self.initial_learning_rate * cosine_decay
+                
+                # 根据步数选择使用warmup还是decay
+                return tf.where(
+                    step < warmup_steps,
+                    warmup_lr,
+                    decay_lr
+                )
         
-        return CustomSchedule(d_model, warmup_steps)
+        return WarmupCosineDecay(
+            initial_learning_rate=0.001,
+            warmup_steps=warmup_steps,
+            total_steps=10000
+        )
     
     def build_ml_models(self):
         """构建机器学习模型用于SHAP分析"""
@@ -869,14 +829,12 @@ class CarbonPricePredictionSystem:
         X_ml_test = test_data[self.feature_names].values
         y_ml_test = test_data[target_col].values
         
-        # 检查并处理NaN值（应该已经在preprocess_data中处理完毕）
+        # 检查并处理NaN值
         print(f"\n数据完整性检查:")
         print(f"X_seq_train NaN数量: {np.isnan(X_seq_train).sum()}")
         print(f"y_seq_train NaN数量: {np.isnan(y_seq_train).sum()}")
         print(f"X_seq_test NaN数量: {np.isnan(X_seq_test).sum()}")
         print(f"y_seq_test NaN数量: {np.isnan(y_seq_test).sum()}")
-        
-        # 如果还有NaN值（理论上不应该有），直接报错而不是静默填充
         if np.isnan(X_seq_train).any() or np.isnan(y_seq_train).any():
             raise ValueError("训练数据中仍有NaN值，请检查preprocess_data步骤")
         
@@ -889,53 +847,37 @@ class CarbonPricePredictionSystem:
         if np.isnan(X_ml_test).any() or np.isnan(y_ml_test).any():
             raise ValueError("ML测试数据中仍有NaN值，请检查preprocess_data步骤")
         
-        # 对深度学习模型进行特征标准化（这对LSTM和Transformer很重要）
+        # 对深度学习模型进行特征标准化
         print("\n对深度学习模型进行特征标准化...")
-        
-        # 创建特征缩放器（只在训练集上拟合）
+        # 创建特征缩放器
         self.scalers['X_scaler'] = MinMaxScaler(feature_range=(0, 1))
-        # 关键修复：使用整个数据集（训练+验证+测试）来拟合y_scaler
-        # 这样可以确保反标准化时使用正确的范围
         self.scalers['y_scaler'] = MinMaxScaler(feature_range=(0, 1))
         
-        # 处理序列数据的标准化（3D数组）
-        # 将3D数组展开为2D进行标准化，然后再恢复形状
+        # 处理序列数据的标准化
         original_train_shape = X_seq_train.shape
         original_val_shape = X_seq_val.shape
         original_test_shape = X_seq_test.shape
         
-        # 训练集：拟合并转换
         X_seq_train_2d = X_seq_train.reshape(-1, original_train_shape[-1])
         X_seq_train_2d_scaled = self.scalers['X_scaler'].fit_transform(X_seq_train_2d)
         X_seq_train_scaled = X_seq_train_2d_scaled.reshape(original_train_shape)
         
-        # 验证集：仅转换
         X_seq_val_2d = X_seq_val.reshape(-1, original_val_shape[-1])
         X_seq_val_2d_scaled = self.scalers['X_scaler'].transform(X_seq_val_2d)
         X_seq_val_scaled = X_seq_val_2d_scaled.reshape(original_val_shape)
         
-        # 测试集：仅转换
         X_seq_test_2d = X_seq_test.reshape(-1, original_test_shape[-1])
         X_seq_test_2d_scaled = self.scalers['X_scaler'].transform(X_seq_test_2d)
         X_seq_test_scaled = X_seq_test_2d_scaled.reshape(original_test_shape)
         
         # 目标变量标准化
-        # 关键修复：先在整个目标变量（训练+验证+测试）上拟合scaler
         y_all = np.concatenate([y_seq_train, y_seq_val, y_seq_test])
         self.scalers['y_scaler'].fit(y_all.reshape(-1, 1))
         
-        # 然后分别转换
-        y_seq_train_scaled = self.scalers['y_scaler'].transform(
-            y_seq_train.reshape(-1, 1)
-        ).flatten()
-        y_seq_val_scaled = self.scalers['y_scaler'].transform(
-            y_seq_val.reshape(-1, 1)
-        ).flatten()
-        y_seq_test_scaled = self.scalers['y_scaler'].transform(
-            y_seq_test.reshape(-1, 1)
-        ).flatten()
+        y_seq_train_scaled = self.scalers['y_scaler'].transform(y_seq_train.reshape(-1, 1)).flatten()
+        y_seq_val_scaled = self.scalers['y_scaler'].transform(y_seq_val.reshape(-1, 1)).flatten()
+        y_seq_test_scaled = self.scalers['y_scaler'].transform(y_seq_test.reshape(-1, 1)).flatten()
         
-        # 打印scaler的参数用于调试
         print(f"\ny_scaler参数:")
         print(f"  整体y范围: [{y_all.min():.2f}, {y_all.max():.2f}]")
         print(f"  训练集y范围: [{y_seq_train.min():.2f}, {y_seq_train.max():.2f}]")
@@ -947,18 +889,38 @@ class CarbonPricePredictionSystem:
         print(f"特征缩放范围: [{X_seq_train_scaled.min():.4f}, {X_seq_train_scaled.max():.4f}]")
         print(f"目标缩放范围: [{y_seq_train_scaled.min():.4f}, {y_seq_train_scaled.max():.4f}]")
         
-        # ML数据不进行标准化（根据项目配置）
         X_ml_train_scaled = X_ml_train
         X_ml_test_scaled = X_ml_test
         
-        # 训练LSTM模型
         print("\n训练LSTM模型...")
         lstm_model = self.build_lstm_model()
         
-        # 验证输入数据的有效性
         print(f"LSTM输入数据检查:")
         print(f"  X_train shape: {X_seq_train_scaled.shape}, range: [{X_seq_train_scaled.min():.4f}, {X_seq_train_scaled.max():.4f}]")
         print(f"  y_train shape: {y_seq_train_scaled.shape}, range: [{y_seq_train_scaled.min():.4f}, {y_seq_train_scaled.max():.4f}]")
+        
+        # LSTM训练回调函数
+        lstm_callbacks = [
+            tf.keras.callbacks.EarlyStopping(
+                monitor='val_loss',
+                patience=20,
+                restore_best_weights=True,
+                verbose=1
+            ),
+            tf.keras.callbacks.ReduceLROnPlateau(
+                monitor='val_loss',
+                factor=0.5,
+                patience=10,
+                min_lr=1e-6,
+                verbose=1
+            ),
+            tf.keras.callbacks.ModelCheckpoint(
+                filepath=os.path.join(self.output_dirs['txt'], f'{self.run_name}_lstm_best.h5'),
+                monitor='val_loss',
+                save_best_only=True,
+                verbose=0
+            )
+        ]
         
         lstm_history = lstm_model.fit(
             X_seq_train_scaled, y_seq_train_scaled,
@@ -966,43 +928,51 @@ class CarbonPricePredictionSystem:
             epochs=self.config['lstm_config']['epochs'],
             batch_size=self.config['lstm_config']['batch_size'],
             verbose=1,
-            callbacks=[
-                tf.keras.callbacks.EarlyStopping(
-                    patience=10, restore_best_weights=True, monitor='val_loss'
-                ),
-                tf.keras.callbacks.ReduceLROnPlateau(
-                    patience=5, factor=0.5, monitor='val_loss'
-                )
-            ]
+            callbacks=lstm_callbacks
         )
         
-        # 训练Transformer模型
         print("\n训练Transformer模型...")
         transformer_model = self.build_transformer_model()
         
-        # 验证输入数据的有效性
         print(f"Transformer输入数据检查:")
         print(f"  X_train shape: {X_seq_train_scaled.shape}, range: [{X_seq_train_scaled.min():.4f}, {X_seq_train_scaled.max():.4f}]")
         print(f"  y_train shape: {y_seq_train_scaled.shape}, range: [{y_seq_train_scaled.min():.4f}, {y_seq_train_scaled.max():.4f}]")
+        
+        # Transformer训练回调函数
+        transformer_callbacks = [
+            tf.keras.callbacks.EarlyStopping(
+                monitor='val_loss',
+                patience=20,
+                restore_best_weights=True,
+                verbose=1
+            ),
+            tf.keras.callbacks.ReduceLROnPlateau(
+                monitor='val_loss',
+                factor=0.5,
+                patience=10,
+                min_lr=1e-7,
+                verbose=1
+            ),
+            tf.keras.callbacks.ModelCheckpoint(
+                filepath=os.path.join(self.output_dirs['txt'], f'{self.run_name}_transformer_best.h5'),
+                monitor='val_loss',
+                save_best_only=True,
+                verbose=0
+            )
+        ]
         
         transformer_history = transformer_model.fit(
             X_seq_train_scaled, y_seq_train_scaled,
             validation_data=(X_seq_val_scaled, y_seq_val_scaled),
             epochs=self.config['transformer_config']['epochs'],
-            batch_size=self.config['transformer_config'].get('batch_size', 8),
+            batch_size=self.config['transformer_config'].get('batch_size', 16),
             verbose=1,
-            callbacks=[
-                tf.keras.callbacks.EarlyStopping(
-                    patience=10, restore_best_weights=True, monitor='val_loss'
-                )
-            ]
+            callbacks=transformer_callbacks
         )
         
-        # 训练机器学习模型
         print("\n训练机器学习模型...")
         ml_models = self.build_ml_models()
         
-        # 不进行标准化，直接使用原始数据
         for name, model in ml_models.items():
             print(f"训练 {name}...")
             model.fit(X_ml_train_scaled, y_ml_train)
@@ -1018,8 +988,8 @@ class CarbonPricePredictionSystem:
             'X_seq_train': X_seq_train_scaled,
             'y_seq_train': y_seq_train_scaled,
             'X_seq_test': X_seq_test_scaled,
-            'y_seq_test': y_seq_test,  # 保存未标准化的真实值用于评估
-            'y_seq_test_scaled': y_seq_test_scaled,  # 保存标准化版本供参考
+            'y_seq_test': y_seq_test,
+            'y_seq_test_scaled': y_seq_test_scaled,
             'X_ml_train': X_ml_train_scaled,
             'y_ml_train': y_ml_train,
             'X_ml_test': X_ml_test_scaled,
@@ -1052,30 +1022,24 @@ class CarbonPricePredictionSystem:
                 print(f"\n评估 {model_name.upper()} 模型...")
                 model = self.models[model_name]
                 
-                # 预测
-                y_pred_scaled = model.predict(
-                    self.train_data['X_seq_test'], verbose=0
-                )
+                y_pred_scaled = model.predict(self.train_data['X_seq_test'], verbose=0)
                 
-                # 调试信息：检查预测值范围
-                print(f"  预测值（标准化后）范围: [{y_pred_scaled.min():.6f}, {y_pred_scaled.max():.6f}]")
-                print(f"  预测值（标准化后）均值: {y_pred_scaled.mean():.6f}, 标准差: {y_pred_scaled.std():.6f}")
+                # 关键优化：裁剪预测值到[0,1]范围
+                y_pred_scaled_clipped = np.clip(y_pred_scaled, 0.0, 1.0)
                 
-                # 反标准化预测结果
-                y_pred = self.scalers['y_scaler'].inverse_transform(
-                    y_pred_scaled.reshape(-1, 1)
-                ).flatten()
+                print(f"  预测值（标准化后-裁剪前）范围: [{y_pred_scaled.min():.6f}, {y_pred_scaled.max():.6f}]")
+                print(f"  预测值（标准化后-裁剪后）范围: [{y_pred_scaled_clipped.min():.6f}, {y_pred_scaled_clipped.max():.6f}]")
+                print(f"  预测值（标准化后）均值: {y_pred_scaled_clipped.mean():.6f}, 标准差: {y_pred_scaled_clipped.std():.6f}")
                 
-                # 使用未标准化的真实值（y_seq_test已经是原始尺度）
+                # 使用裁剪后的值进行反标准化
+                y_pred = self.scalers['y_scaler'].inverse_transform(y_pred_scaled_clipped.reshape(-1, 1)).flatten()
                 y_true = self.train_data['y_seq_test']
                 
-                # 调试信息：检查反标准化后的预测值范围
                 print(f"  预测值（反标准化后）范围: [{y_pred.min():.2f}, {y_pred.max():.2f}]")
                 print(f"  真实值范围: [{y_true.min():.2f}, {y_true.max():.2f}]")
                 print(f"  预测值（反标准化后）均值: {y_pred.mean():.2f}, 标准差: {y_pred.std():.2f}")
                 print(f"  真实值均值: {y_true.mean():.2f}, 标准差: {y_true.std():.2f}")
                 
-                # 计算指标
                 mse = mean_squared_error(y_true, y_pred)
                 mae = mean_absolute_error(y_true, y_pred)
                 rmse = np.sqrt(mse)
@@ -1165,7 +1129,6 @@ class CarbonPricePredictionSystem:
         print("\n\n模型性能对比:")
         print(performance_df.round(4))
         
-        # 找出最佳模型
         best_model = performance_df['R²'].idxmax()
         print(f"\n最佳模型（基于R²）: {best_model}")
         
@@ -1888,18 +1851,16 @@ class CarbonPricePredictionSystem:
         print("🚀 开始碳价格预测完整分析...\n")
         
         try:
-            # 1. 数据源处理：根据项目记忆使用默认文件
+            # 数据源处理
             if data_path:
                 print(f"📊 使用指定的数据文件: {data_path}")
                 self.data_source = data_path
                 self.load_data(data_path)
             else:
-                # 使用默认的测试数据文件
                 default_data_path = DEFAULT_DATA_FILE
                 print(f"📊 未指定数据文件，使用默认测试数据: {default_data_path}")
                 self.data_source = default_data_path
                 
-                # 尝试加载默认数据文件，如果不存在则创建示例数据
                 try:
                     self.load_data(default_data_path)
                 except (FileNotFoundError, IOError):
@@ -1907,22 +1868,22 @@ class CarbonPricePredictionSystem:
                     self.create_sample_data(save_path=default_data_path)
                     self.data_source = '示例数据'
             
-            # 2. 数据预处理
+            # 数据预处理
             self.preprocess_data()
             
-            # 3. 模型训练
+            # 模型训练
             self.train_models()
             
-            # 4. 模型评估
+            # 模型评估
             self.evaluate_models()
             
-            # 5. SHAP分析
+            # SHAP分析
             self.perform_shap_analysis()
             
-            # 6. 创建可视化
+            # 创建可视化
             self.create_visualizations()
             
-            # 7. 生成报告
+            # 生成报告
             self.generate_report()
             
             print("\n✅ 完整分析流程执行成功！")
@@ -1937,68 +1898,18 @@ class CarbonPricePredictionSystem:
 
 
 def main():
-    """
-    主函数演示
-    
-    📖 如何使用自己的数据运行系统：
-    ================================
-    
-    🔧 方法1：快速开始（推荐新手）
-    ----------------------------
-    # 直接替换main()函数中的文件路径
-    system = CarbonPricePredictionSystem()
-    system.run_complete_analysis('你的数据文件.xlsx')  # 改成你的文件路径
-    
-    📋 数据准备检查清单：
-    --------------------
-    ✅ 文件格式：Excel(.xlsx/.xls) 或 CSV(.csv)
-    ✅ 第一列：日期（作为索引），格式正确
-    ✅ 数据量：至少500行，推荐1000+行
-    ✅ 碳价格列：包含目标变量
-    ✅ 影响因子：8-15个相关变量
-    ✅ 数据质量：无异常值，缺失值<5%
-    ✅ 时间连续：按时间顺序排列
-    
-    🎯 预期输出文件：
-    ----------------
-    • Excel报告：包含所有分析结果和数据表
-    • 详细文本报告：完整的分析结果解读  
-    • 运行日志：系统配置和运行信息
-    • 图表文件：模型性能、预测结果、SHAP分析等可视化
-    """
+    """主函数"""
     print("🌍 " + "="*60)
     print(" " * 20 + "碳价格预测系统")
     print(" " * 15 + "LSTM + Transformer + SHAP 分析")
     print("="*60 + " 🌍")
     
-    # 🚀 使用自己数据的示例（取消注释并修改路径）：
-    # =====================================================
-    # 
-    # 方法1：快速开始
-    # system = CarbonPricePredictionSystem()
-    # system.run_complete_analysis('你的数据文件.xlsx')  # 替换为你的文件路径
-    # 
-    # 方法2：自定义配置
-    # my_config = {
-    #     'target_column': '你的碳价格列名',  # 如：'carbon_price', 'price', '碳价格'等
-    #     'sequence_length': 60,
-    #     'test_size': 0.2
-    # }
-    # system = CarbonPricePredictionSystem(config=my_config)
-    # system.run_complete_analysis('你的数据文件.xlsx')
-    #
-    # 当前运行示例数据演示：
-    # =====================
-    
     try:
-        # 创建预测系统实例
         system = CarbonPricePredictionSystem()
         
-        # 🚀 使用全局变量定义的测试数据文件
         test_data_path = DEFAULT_DATA_FILE
         print(f"📊 正在使用默认测试数据文件: {test_data_path}")
         
-        # 运行完整分析（使用指定的测试数据文件）
         success = system.run_complete_analysis(test_data_path)
         
         if success:
@@ -2008,19 +1919,6 @@ def main():
             print(f"   • outputs/logs/{system.run_name}_detailed_report.txt - 详细文本分析报告")
             print(f"   • outputs/logs/{system.run_name}_runtime_log.txt - 系统运行日志")
             print(f"   • outputs/visualizations/ - 可视化图表目录")
-            print("\n🔧 如何使用你自己的数据:")
-            print("   1. 数据格式：Excel(.xlsx)或CSV(.csv)，第一列为日期")
-            print("   2. 必需列：碳价格列（列名可为carbon_price、price、碳价格等）")
-            print("   3. 推荐列：GDP、工业指数、能源价格等影响因子（8-15个）")
-            print("   4. 数据量：建议1000+个数据点，时间跨度3年以上")
-            print("\n💻 代码示例:")
-            print("   # 基本用法")
-            print("   system = CarbonPricePredictionSystem()")
-            print("   system.run_complete_analysis('你的数据文件.xlsx')")
-            print("\n   # 自定义配置")
-            print("   config = {'target_column': '你的碳价格列名'}")
-            print("   system = CarbonPricePredictionSystem(config=config)")
-            print("   system.run_complete_analysis('数据文件.xlsx')")
         else:
             print("\n⚠️ 程序执行失败，请检查错误信息")
     
