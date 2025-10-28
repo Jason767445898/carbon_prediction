@@ -47,18 +47,18 @@ tf.random.set_seed(42)
 CONFIG = {
     'data_file': 'data.dta',
     'target_column': 'carbon_price_hb_ea',  # 碳价格列
-    'sequence_length': 60,  # 降低序列长度避免过拟合
+    'sequence_length': 90,  # 进一步增加序列长度以捕获更长趋势
     'test_size': 0.2,
     'validation_size': 0.1,
-    'epochs': 200,  # 减少训练轮数避免过拟合
-    'batch_size': 24,  # 增大批次提高训练稳定性
-    'learning_rate': 0.0003,  # 提高学习率加快收敛
-    'lstm_units': 128,  # 降低LSTM单元数减少过拟合
-    'lstm_units_2': 64,  # 第二层LSTM单元数
-    'lstm_units_3': 32,  # 第三层LSTM单元数
-    'attention_dim': 64,  # 降低注意力维度
-    'dropout_rate': 0.45,  # 增加dropout防止过拟合
-    'l2_reg': 0.002,  # 增强L2正则化
+    'epochs': 300,  # 增加训练轮数
+    'batch_size': 16,  # 减小批次以增加更新频率
+    'learning_rate': 0.0001,  # 降低初始学习率
+    'lstm_units': 256,  # 显著增加LSTM单元数
+    'lstm_units_2': 128,  # 第二层LSTM单元数
+    'lstm_units_3': 64,  # 添加第三层LSTM
+    'attention_dim': 128,  # 增加注意力维度
+    'dropout_rate': 0.4,  # 增加dropout防止过拟合
+    'l2_reg': 0.001,  # L2正则化系数
     'gradient_clip': 1.0,  # 梯度裁剪阈值
 }
 
@@ -173,8 +173,8 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
             lambda: 0.0
         )
         
-        # 组合损失：90% Huber + 10% 方向（进一步降低方向权重，聚焦精度）
-        total_loss = 0.9 * huber + 0.1 * direction_component
+        # 组合损失：80% Huber + 20% 方向（降低方向权重避免NaN）
+        total_loss = 0.8 * huber + 0.2 * direction_component
         
         # 确保输出不为NaN
         return tf.where(tf.math.is_nan(total_loss), huber, total_loss)
@@ -293,49 +293,53 @@ class LSTMAttentionCarbonPrediction:
         # 特征工程 - 增强版（使用shift避免数据泄露）
         print("   • Creating lag-shifted technical indicators to prevent data leakage...")
         
-        # 基础滞后特征 - 仅原始价格需要lag
+        # 基础滞后特征
         for lag in [1, 2, 3, 5, 7, 10]:
             df[f'price_lag_{lag}'] = df[target].shift(lag)
         
-        # 价格变化 - 基于lag价格计算,无需额外shift
-        df['price_return'] = df[target].pct_change()
-        df['price_diff'] = df[target].diff()
+        # 价格变化 - 使用shift(1)确保不包含当前值
+        df['price_return'] = df[target].pct_change().shift(1)
+        df['price_diff'] = df[target].diff().shift(1)
         
-        # 移动平均 - 技术指标本身就基于历史,无需shift
+        # 移动平均 - 使用shift(1)避免数据泄露
         for window in [5, 10, 20, 30, 60]:
-            df[f'ma_{window}'] = df[target].rolling(window, min_periods=1).mean()
-            df[f'ma_{window}_ratio'] = df[target] / (df[f'ma_{window}'] + 1e-10)
+            df[f'ma_{window}'] = df[target].rolling(window, min_periods=1).mean().shift(1)
+            df[f'ma_{window}_ratio'] = df[target].shift(1) / (df[f'ma_{window}'] + 1e-10)
         
-        # 指数移动平均 - 无需shift
+        # 指数移动平均 - 使用shift(1)
         for span in [12, 26]:
-            df[f'ema_{span}'] = df[target].ewm(span=span, adjust=False).mean()
-            df[f'ema_{span}_ratio'] = df[target] / (df[f'ema_{span}'] + 1e-10)
+            df[f'ema_{span}'] = df[target].ewm(span=span, adjust=False).mean().shift(1)
+            df[f'ema_{span}_ratio'] = df[target].shift(1) / (df[f'ema_{span}'] + 1e-10)
         
-        # 波动率 - 无需shift
+        # 波动率 - 使用shift(1)
         for window in [7, 14, 30]:
-            df[f'volatility_{window}'] = df[target].rolling(window, min_periods=1).std()
-            df[f'volatility_{window}_ratio'] = df[f'volatility_{window}'] / (df[target] + 1e-10)
+            df[f'volatility_{window}'] = df[target].rolling(window, min_periods=1).std().shift(1)
+            df[f'volatility_{window}_ratio'] = df[f'volatility_{window}'] / (df[target].shift(1) + 1e-10)
         
-        # 价格动量 - 无需shift
+        # 价格动量 - 使用shift确保使用历史数据
         for period in [5, 10, 20]:
-            df[f'momentum_{period}'] = df[target].diff(period)
+            df[f'momentum_{period}'] = df[target].shift(1).diff(period)
         
-        # 价格变化率 - 无需shift
+        # 价格变化率 - 使用shift
         for period in [5, 10, 20]:
-            df[f'roc_{period}'] = df[target].pct_change(period)
+            df[f'roc_{period}'] = df[target].shift(1).pct_change(period)
         
-        # RSI指标 - 无需shift
+        # RSI指标 - 使用shift(1)
         for period in [14, 28]:
             delta = df[target].diff()
-            gain = delta.where(delta > 0, 0).rolling(period, min_periods=1).mean()
-            loss = -delta.where(delta < 0, 0).rolling(period, min_periods=1).mean()
+            gain = delta.where(delta > 0, 0).rolling(period, min_periods=1).mean().shift(1)
+            loss = -delta.where(delta < 0, 0).rolling(period, min_periods=1).mean().shift(1)
             rs = gain / (loss + 1e-10)
             df[f'rsi_{period}'] = 100 - (100 / (1 + rs))
         
-        # 选择特征(仅排除目标变量的直接变换)
-        # 交易量等独立变量可以保留
+        # 选择特征（排除目标列、衍生列和数据泄露特征）
+        # 排除与目标变量直接相关的特征，防止数据泄露
         leakage_features = [
-            'log_carbon_price_hb_ea',  # 目标变量的对数形式(真正的泄露)
+            'log_carbon_price_hb_ea',  # 目标变量的对数形式
+            'log_transactionamount_hb_ea',  # 可能包含未来信息的交易量
+            'log_transactionamount_hb_ea_sqr',  # 交易量的对数平方
+            'price_return',  # 衍生列
+            'price_diff'  # 衍生列
         ]
         
         feature_cols = [col for col in df.columns 
@@ -446,20 +450,20 @@ class LSTMAttentionCarbonPrediction:
         print("\n模型架构:")
         self.model.summary()
         
-        # 训练回调 - 优化版本3:降低patience,更激进的学习率衰减
+        # 训练回调 - 优化版
         callbacks = [
             EarlyStopping(
                 monitor='val_loss', 
-                patience=30,  # 降低耐心值避免过拟合
+                patience=40,  # 进一步增加耐心
                 restore_best_weights=True, 
                 verbose=1,
-                min_delta=1e-4  # 提高阈值加快停止
+                min_delta=1e-5
             ),
             ReduceLROnPlateau(
                 monitor='val_loss', 
-                factor=0.3,  # 更激进的衰减
-                patience=15,  # 降低耐心值
-                min_lr=1e-7, 
+                factor=0.5, 
+                patience=20,  # 进一步增加耐心
+                min_lr=1e-8, 
                 verbose=1
             ),
             tf.keras.callbacks.ModelCheckpoint(
