@@ -173,8 +173,8 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
             lambda: 0.0
         )
         
-        # 组合损失：81% Huber + 19% 方向（第六轮优化:微调至19%寻找最优点）
-        total_loss = 0.81 * huber + 0.19 * direction_component
+        # 组合损失：75% Huber + 25% 方向（第五轮优化:增强方向正则化）
+        total_loss = 0.75 * huber + 0.25 * direction_component
         
         # 确保输出不为NaN
         return tf.where(tf.math.is_nan(total_loss), huber, total_loss)
