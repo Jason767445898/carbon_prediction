@@ -50,7 +50,7 @@ CONFIG = {
     'sequence_length': 90,  # 恢复优化版本1的序列长度
     'test_size': 0.2,
     'validation_size': 0.1,
-    'epochs': 300,  # 恢复优化版本1的训练轮数
+    'epochs': 400,  # 增加训练轮数上限,依赖EarlyStopping
     'batch_size': 16,  # 恢复优化版本1的批次大小
     'learning_rate': 0.0001,  # 恢复优化版本1的学习率
     'lstm_units': 256,  # 恢复优化版本1的LSTM单元数
@@ -173,8 +173,8 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
             lambda: 0.0
         )
         
-        # 组合损失：75% Huber + 25% 方向（第五轮优化:增强方向正则化）
-        total_loss = 0.75 * huber + 0.25 * direction_component
+        # 组合损失：95% Huber + 5% 方向（第四轮优化:进一步降低方向权重以优化R²）
+        total_loss = 0.95 * huber + 0.05 * direction_component
         
         # 确保输出不为NaN
         return tf.where(tf.math.is_nan(total_loss), huber, total_loss)
