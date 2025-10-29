@@ -50,7 +50,7 @@ CONFIG = {
     'sequence_length': 90,  # 恢复优化版本1的序列长度
     'test_size': 0.2,
     'validation_size': 0.1,
-    'epochs': 300,  # 恢复优化版本1的训练轮数
+    'epochs': 350,  # 第七轮实验B: 增加至350轮
     'batch_size': 16,  # 恢复优化版本1的批次大小
     'learning_rate': 0.0001,  # 恢复优化版本1的学习率
     'lstm_units': 256,  # 恢复优化版本1的LSTM单元数
@@ -173,22 +173,16 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
             lambda: 0.0
         )
         
-        # 组合损失：81% Huber + 19% 方向（第六轮优化:微调至19%寻找最优点）
-        total_loss = 0.81 * huber + 0.19 * direction_component
+        # 组合损失：80% Huber + 20% 方向（第七轮实验B:恢复20%最优权重）
+        total_loss = 0.80 * huber + 0.20 * direction_component
         
         # 确保输出不为NaN
         return tf.where(tf.math.is_nan(total_loss), huber, total_loss)
     
-    # 学习率调度：Cosine Decay with Warmup
-    lr_schedule = tf.keras.optimizers.schedules.CosineDecay(
-        initial_learning_rate=CONFIG['learning_rate'],
-        decay_steps=CONFIG['epochs'] * 50,  # 假设每个epoch约50步
-        alpha=0.05  # 最终学习率为初始值的5%
-    )
-    
+    # 第七轮实验B: 使用常量学习率,配合ReduceLROnPlateau动态调整
     model = Model(inputs=inputs, outputs=outputs)
     model.compile(
-        optimizer=Adam(learning_rate=lr_schedule, clipnorm=CONFIG['gradient_clip']),
+        optimizer=Adam(learning_rate=CONFIG['learning_rate'], clipnorm=CONFIG['gradient_clip']),
         loss=directional_loss,
         metrics=['mae', 'mse']
     )
@@ -450,14 +444,21 @@ class LSTMAttentionCarbonPrediction:
         print("\n模型架构:")
         self.model.summary()
         
-        # 训练回调 - 第五轮优化:移除ReduceLROnPlateau(与CosineDecay冲突)
+        # 训练回调 - 第七轮实验B:恢复ReduceLROnPlateau动态调整学习率
         callbacks = [
             EarlyStopping(
                 monitor='val_loss', 
-                patience=50,  # 恢复优化版本1的耐心值
+                patience=60,  # 增加耐心值至60
                 restore_best_weights=True, 
                 verbose=1,
                 min_delta=1e-6
+            ),
+            ReduceLROnPlateau(
+                monitor='val_loss',
+                patience=20,
+                factor=0.7,
+                min_lr=1e-7,
+                verbose=1
             ),
             tf.keras.callbacks.ModelCheckpoint(
                 filepath=os.path.join(OUTPUT_DIR, 'models', 'best_model.keras'),
