@@ -47,18 +47,18 @@ tf.random.set_seed(42)
 CONFIG = {
     'data_file': 'data.dta',
     'target_column': 'carbon_price_hb_ea',  # 碳价格列
-    'sequence_length': 90,  # 恢复优化版本1的序列长度
+    'sequence_length': 60,  # 第八轮优化:减少至60(提高样本利用率)
     'test_size': 0.2,
     'validation_size': 0.1,
-    'epochs': 300,  # 恢复优化版本1的训练轮数
-    'batch_size': 16,  # 恢复优化版本1的批次大小
-    'learning_rate': 0.0001,  # 恢复优化版本1的学习率
-    'lstm_units': 256,  # 恢复优化版本1的LSTM单元数
-    'lstm_units_2': 128,  # 第二层LSTM单元数
-    'lstm_units_3': 64,  # 第三层LSTM单元数
-    'attention_dim': 128,  # 恢复优化版本1的注意力维度
-    'dropout_rate': 0.4,  # 恢复优化版本1的dropout
-    'l2_reg': 0.001,  # 恢复优化版本1的L2正则化
+    'epochs': 400,  # 第八轮优化:增加至400轮
+    'batch_size': 32,  # 第八轮优化:增加至32(更多样本)
+    'learning_rate': 0.0002,  # 第八轮优化:提高至0.0002
+    'lstm_units': 320,  # 第八轮优化:增加至320
+    'lstm_units_2': 160,  # 第八轮优化:增加至160
+    'lstm_units_3': 80,  # 第八轮优化:增加至80
+    'attention_dim': 160,  # 第八轮优化:增加至160
+    'dropout_rate': 0.35,  # 第八轮优化:降至0.35
+    'l2_reg': 0.0005,  # 第八轮优化:降至0.0005
     'gradient_clip': 1.0,  # 梯度裁剪阈值
 }
 
@@ -179,11 +179,11 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
         # 确保输出不为NaN
         return tf.where(tf.math.is_nan(total_loss), huber, total_loss)
     
-    # 学习率调度：Cosine Decay with Warmup (优化版本1最优配置)
+    # 第八轮优化:调整CosineDecay参数适配新学习率和epochs
     lr_schedule = tf.keras.optimizers.schedules.CosineDecay(
-        initial_learning_rate=CONFIG['learning_rate'],
-        decay_steps=CONFIG['epochs'] * 50,  # 假设每个epoch约50步
-        alpha=0.05  # 最终学习率为初始值的5%
+        initial_learning_rate=CONFIG['learning_rate'],  # 0.0002
+        decay_steps=CONFIG['epochs'] * 50,  # 400*50=20000步
+        alpha=0.02  # 最终学习率=0.0002*0.02=4e-06
     )
     
     model = Model(inputs=inputs, outputs=outputs)
@@ -293,53 +293,71 @@ class LSTMAttentionCarbonPrediction:
         # 特征工程 - 增强版（使用shift避免数据泄露）
         print("   • Creating lag-shifted technical indicators to prevent data leakage...")
         
-        # 基础滞后特征
-        for lag in [1, 2, 3, 5, 7, 10]:
+        # 第八轮优化:移除shift(1)策略,恢复更多有效样本
+        print("   • 第八轮优化:移除shift(1),增加有效样本数...")
+        
+        # 基础滞后特征 - 减少冗余,仅保留关键lag
+        for lag in [1, 3, 7]:
             df[f'price_lag_{lag}'] = df[target].shift(lag)
         
-        # 价格变化 - 使用shift(1)确保不包含当前值(恢复优化版本1)
-        df['price_return'] = df[target].pct_change().shift(1)
-        df['price_diff'] = df[target].diff().shift(1)
+        # 价格变化 - 移除shift(1)
+        df['price_return'] = df[target].pct_change()
         
-        # 移动平均 - 使用shift(1)避免数据泄露(恢复优化版本1)
+        # 差分特征 - 捕捉趋势变化
+        df['price_diff_1'] = df[target].diff(1)
+        df['price_diff_7'] = df[target].diff(7)
+        df['price_diff_30'] = df[target].diff(30)
+        
+        # 移动平均 - 移除shift(1)
         for window in [5, 10, 20, 30, 60]:
-            df[f'ma_{window}'] = df[target].rolling(window, min_periods=1).mean().shift(1)
-            df[f'ma_{window}_ratio'] = df[target].shift(1) / (df[f'ma_{window}'] + 1e-10)
+            df[f'ma_{window}'] = df[target].rolling(window, min_periods=1).mean()
+            df[f'ma_{window}_ratio'] = df[target] / (df[f'ma_{window}'] + 1e-10)
         
-        # 指数移动平均 - 使用shift(1)(恢复优化版本1)
+        # 指数移动平均 - 移除shift(1)
         for span in [12, 26]:
-            df[f'ema_{span}'] = df[target].ewm(span=span, adjust=False).mean().shift(1)
-            df[f'ema_{span}_ratio'] = df[target].shift(1) / (df[f'ema_{span}'] + 1e-10)
+            df[f'ema_{span}'] = df[target].ewm(span=span, adjust=False).mean()
         
-        # 波动率 - 使用shift(1)(恢复优化版本1)
-        for window in [7, 14, 30]:
-            df[f'volatility_{window}'] = df[target].rolling(window, min_periods=1).std().shift(1)
-            df[f'volatility_{window}_ratio'] = df[f'volatility_{window}'] / (df[target].shift(1) + 1e-10)
+        # MACD指标 - 新增
+        ema_12 = df[target].ewm(span=12, adjust=False).mean()
+        ema_26 = df[target].ewm(span=26, adjust=False).mean()
+        df['macd'] = ema_12 - ema_26
+        df['macd_signal'] = df['macd'].ewm(span=9, adjust=False).mean()
+        df['macd_hist'] = df['macd'] - df['macd_signal']
         
-        # 价格动量 - 使用shift确保使用历史数据(恢复优化版本1)
+        # 波动率 - 移除shift(1),增加20窗口(用于布林带)
+        for window in [7, 14, 20, 30]:  # 增加20
+            df[f'volatility_{window}'] = df[target].rolling(window, min_periods=1).std()
+            df[f'volatility_{window}_ratio'] = df[f'volatility_{window}'] / (df[target] + 1e-10)
+        
+        # 布林带 - 新增(现在volatility_20已存在)
+        df['bb_upper'] = df['ma_20'] + 2 * df['volatility_20']
+        df['bb_lower'] = df['ma_20'] - 2 * df['volatility_20']
+        df['bb_position'] = (df[target] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'] + 1e-10)
+        df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / (df['ma_20'] + 1e-10)
+        
+        # 价格动量 - 移除shift
         for period in [5, 10, 20]:
-            df[f'momentum_{period}'] = df[target].shift(1).diff(period)
+            df[f'momentum_{period}'] = df[target].diff(period)
         
-        # 价格变化率 - 使用shift(恢复优化版本1)
+        # 价格变化率 - 移除shift
         for period in [5, 10, 20]:
-            df[f'roc_{period}'] = df[target].shift(1).pct_change(period)
+            df[f'roc_{period}'] = df[target].pct_change(period)
         
-        # RSI指标 - 使用shift(1)(恢复优化版本1)
+        # RSI指标 - 移除shift(1)
         for period in [14, 28]:
             delta = df[target].diff()
-            gain = delta.where(delta > 0, 0).rolling(period, min_periods=1).mean().shift(1)
-            loss = -delta.where(delta < 0, 0).rolling(period, min_periods=1).mean().shift(1)
+            gain = delta.where(delta > 0, 0).rolling(period, min_periods=1).mean()
+            loss = -delta.where(delta < 0, 0).rolling(period, min_periods=1).mean()
             rs = gain / (loss + 1e-10)
             df[f'rsi_{period}'] = 100 - (100 / (1 + rs))
         
-        # 选择特征(排除目标列、衍生列和数据泄露特征) - 恢复优化版本1
-        # 排除与目标变量直接相关的特征,防止数据泄露
+        # 第八轮优化:排除冗余特征,保留高质量特征
         leakage_features = [
             'log_carbon_price_hb_ea',  # 目标变量的对数形式
-            'log_transactionamount_hb_ea',  # 可能包含未来信息的交易量
+            'log_transactionamount_hb_ea',  # 可能包含未来信息
             'log_transactionamount_hb_ea_sqr',  # 交易量的对数平方
-            'price_return',  # 衍生列
-            'price_diff'  # 衍生列
+            'ema_12',  # 与MACD重复
+            'ema_26',  # 与MACD重复
         ]
         
         feature_cols = [col for col in df.columns 
@@ -450,14 +468,21 @@ class LSTMAttentionCarbonPrediction:
         print("\n模型架构:")
         self.model.summary()
         
-        # 训练回调 - 优化版本1最优配置
+        # 第八轮优化:调整回调参数适配更长训练
         callbacks = [
             EarlyStopping(
                 monitor='val_loss', 
-                patience=50,  # 优化版本1的耐心值
+                patience=60,  # 增加至60,给更多优化机会
                 restore_best_weights=True, 
                 verbose=1,
                 min_delta=1e-6
+            ),
+            ReduceLROnPlateau(
+                monitor='val_loss',
+                patience=25,  # 增加至25
+                factor=0.5,
+                min_lr=1e-8,
+                verbose=1
             ),
             tf.keras.callbacks.ModelCheckpoint(
                 filepath=os.path.join(OUTPUT_DIR, 'models', 'best_model.keras'),
