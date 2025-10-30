@@ -71,35 +71,34 @@ for sub_dir in ['logs', 'reports', 'visualizations']:
 # 辅助函数
 # ============================================================================
 def create_attention_layer(input_tensor, attention_dim):
-    """创建标准的Scaled Dot-Product Attention层
+    """创建Keras兼容的Scaled Dot-Product Attention层
     
     参数:
         input_tensor: 输入张量 shape=(batch_size, sequence_length, features)
         attention_dim: attention的维度
     
     返回:
-        context_vector: 上下文向量 shape=(batch_size, features)
+        context_vector: 上下文向量 shape=(batch_size, attention_dim)
     """
     # Query, Key, Value 转换
     query = layers.Dense(attention_dim, name='attention_query')(input_tensor)
     key = layers.Dense(attention_dim, name='attention_key')(input_tensor)
     value = layers.Dense(attention_dim, name='attention_value')(input_tensor)
     
-    # 计算 attention scores (Q * K^T / sqrt(d_k))
-    # shape: (batch_size, seq_len, seq_len)
-    scores = tf.matmul(query, key, transpose_b=True)
-    scores = scores / tf.math.sqrt(tf.cast(attention_dim, tf.float32))
+    # 使用Keras layers进行矩阵乘法和缩放
+    # scores = Q * K^T / sqrt(d_k)
+    scores = layers.Dot(axes=[2, 2])([query, key])
+    scores = layers.Lambda(lambda x: x / tf.math.sqrt(tf.cast(attention_dim, tf.float32)))(scores)
     
-    # 应用 softmax 获得 attention weights
-    attention_weights = tf.nn.softmax(scores, axis=-1)
+    # Softmax获得attention weights
+    attention_weights = layers.Softmax(axis=-1, name='attention_weights')(scores)
     
-    # 应用 attention weights 到 value
-    # shape: (batch_size, seq_len, attention_dim)
-    context = tf.matmul(attention_weights, value)
+    # 应用attention weights到value
+    # context = attention_weights @ value
+    context = layers.Dot(axes=[2, 1])([attention_weights, value])
     
-    # 聚合到单个上下文向量 (可以使用平均池化或最后一个时间步)
-    # 这里使用全局平均池化
-    context_vector = tf.reduce_mean(context, axis=1)
+    # 全局平均池化聚合到单个上下文向量
+    context_vector = layers.GlobalAveragePooling1D(name='attention_pooling')(context)
     
     return context_vector
 
@@ -145,9 +144,8 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
     # Attention层 + 残差连接
     attention_out = create_attention_layer(lstm_out, attention_dim)
     
-    # 残差连接：将LSTM最后一个时间步与attention输出相加
-    # 使用全局平均池化获取LSTM的聚合表示
-    lstm_pooled = tf.reduce_mean(lstm_out, axis=1)
+    # 残差连接：将LSTM聚合表示与attention输出相加
+    lstm_pooled = layers.GlobalAveragePooling1D(name='lstm_pooling')(lstm_out)
     
     # 维度匹配：如果attention_dim与lstm_units_3不同，需要投影
     if attention_dim != CONFIG['lstm_units_3']:
