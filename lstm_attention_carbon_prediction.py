@@ -46,19 +46,19 @@ tf.random.set_seed(42)
 
 CONFIG = {
     'data_file': 'data.dta',
-    'target_column': 'coal_price',  # 碳价格列
-    'sequence_length': 60,  # 第八轮优化:减少至60(提高样本利用率)
+    'target_column': 'coal_price',  # 煤炭价格列
+    'sequence_length': 60,  # 序列长度
     'test_size': 0.2,
     'validation_size': 0.1,
-    'epochs': 400,  # 第八轮优化:增加至400轮
-    'batch_size': 32,  # 第八轮优化:增加至32(更多样本)
-    'learning_rate': 0.0002,  # 第八轮优化:提高至0.0002
-    'lstm_units': 320,  # 第八轮优化:增加至320
-    'lstm_units_2': 160,  # 第八轮优化:增加至160
-    'lstm_units_3': 80,  # 第八轮优化:增加至80
-    'attention_dim': 160,  # 第八轮优化:增加至160
-    'dropout_rate': 0.35,  # 第八轮优化:降至0.35
-    'l2_reg': 0.0005,  # 第八轮优化:降至0.0005
+    'epochs': 300,  # 煤炭价格优化第一轮最优配置
+    'batch_size': 32,  # 煤炭价格优化第一轮最优配置
+    'learning_rate': 0.00015,  # 煤炭价格优化第一轮最优配置(Config3)
+    'lstm_units': 384,  # 煤炭价格优化第一轮最优配置:增加至384
+    'lstm_units_2': 192,  # 煤炭价格优化第一轮最优配置:增加至192
+    'lstm_units_3': 96,  # 煤炭价格优化第一轮最优配置:增加至96
+    'attention_dim': 192,  # 煤炭价格优化第一轮最优配置:增加至192
+    'dropout_rate': 0.4,  # 煤炭价格优化第一轮最优配置:增加至0.4
+    'l2_reg': 0.001,  # 煤炭价格优化第一轮最优配置:增加至0.001
     'gradient_clip': 1.0,  # 梯度裁剪阈值
 }
 
@@ -70,19 +70,38 @@ for sub_dir in ['logs', 'reports', 'visualizations']:
 # ============================================================================
 # 辅助函数
 # ============================================================================
-
 def create_attention_layer(input_tensor, attention_dim):
-    """创建Attention层"""
-    # Attention 权重计算
-    attention = layers.Dense(attention_dim, activation='tanh')(input_tensor)
-    attention = layers.Dense(1, activation='sigmoid')(attention)
-    attention = layers.Reshape((input_tensor.shape[1], 1))(attention)
+    """创建标准的Scaled Dot-Product Attention层
     
-    # 应用attention权重
-    output = input_tensor * attention
-    output = layers.Lambda(lambda x: tf.reduce_sum(x, axis=1))(output)
+    参数:
+        input_tensor: 输入张量 shape=(batch_size, sequence_length, features)
+        attention_dim: attention的维度
     
-    return output
+    返回:
+        context_vector: 上下文向量 shape=(batch_size, features)
+    """
+    # Query, Key, Value 转换
+    query = layers.Dense(attention_dim, name='attention_query')(input_tensor)
+    key = layers.Dense(attention_dim, name='attention_key')(input_tensor)
+    value = layers.Dense(attention_dim, name='attention_value')(input_tensor)
+    
+    # 计算 attention scores (Q * K^T / sqrt(d_k))
+    # shape: (batch_size, seq_len, seq_len)
+    scores = tf.matmul(query, key, transpose_b=True)
+    scores = scores / tf.math.sqrt(tf.cast(attention_dim, tf.float32))
+    
+    # 应用 softmax 获得 attention weights
+    attention_weights = tf.nn.softmax(scores, axis=-1)
+    
+    # 应用 attention weights 到 value
+    # shape: (batch_size, seq_len, attention_dim)
+    context = tf.matmul(attention_weights, value)
+    
+    # 聚合到单个上下文向量 (可以使用平均池化或最后一个时间步)
+    # 这里使用全局平均池化
+    context_vector = tf.reduce_mean(context, axis=1)
+    
+    return context_vector
 
 def build_lstm_attention_model(sequence_length, n_features, lstm_units, attention_dim):
     """
@@ -123,10 +142,27 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
     )(lstm_out)
     lstm_out = layers.BatchNormalization()(lstm_out)
     
-    # Attention层
+    # Attention层 + 残差连接
     attention_out = create_attention_layer(lstm_out, attention_dim)
     
-    # 更深的全连接层
+    # 残差连接：将LSTM最后一个时间步与attention输出相加
+    # 使用全局平均池化获取LSTM的聚合表示
+    lstm_pooled = tf.reduce_mean(lstm_out, axis=1)
+    
+    # 维度匹配：如果attention_dim与lstm_units_3不同，需要投影
+    if attention_dim != CONFIG['lstm_units_3']:
+        lstm_pooled = layers.Dense(attention_dim, name='residual_projection')(lstm_pooled)
+    
+    # 残差连接：Add层
+    combined = layers.Add(name='residual_connection')([lstm_pooled, attention_out])
+    
+    # Layer Normalization（Transformer标准组件）
+    combined = layers.LayerNormalization(epsilon=1e-6, name='layer_norm')(combined)
+    
+    # 使用combined作为后续全连接层的输入
+    attention_out = combined
+    
+    # 全连接层（Feed-Forward Network）
     dense = layers.Dense(128, activation='relu', 
                         kernel_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg']))(attention_out)
     dense = layers.BatchNormalization()(dense)
@@ -179,11 +215,11 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
         # 确保输出不为NaN
         return tf.where(tf.math.is_nan(total_loss), huber, total_loss)
     
-    # 第八轮优化:调整CosineDecay参数适配新学习率和epochs
+    # 煤炭价格优化第一轮最优配置:CosineDecay适配learning_rate=0.00015
     lr_schedule = tf.keras.optimizers.schedules.CosineDecay(
-        initial_learning_rate=CONFIG['learning_rate'],  # 0.0002
-        decay_steps=CONFIG['epochs'] * 50,  # 400*50=20000步
-        alpha=0.02  # 最终学习率=0.0002*0.02=4e-06
+        initial_learning_rate=CONFIG['learning_rate'],  # 0.00015
+        decay_steps=CONFIG['epochs'] * 50,  # 300*50=15000步
+        alpha=0.02  # 最终学习率=0.00015*0.02=3e-06
     )
     
     model = Model(inputs=inputs, outputs=outputs)
