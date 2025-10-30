@@ -468,7 +468,7 @@ class LSTMAttentionCarbonPrediction:
         print("\n模型架构:")
         self.model.summary()
         
-        # 第八轮优化:调整回调参数适配更长训练
+        # 第八轮优化:调整回调参数(移除ReduceLROnPlateau避免与CosineDecay冲突)
         callbacks = [
             EarlyStopping(
                 monitor='val_loss', 
@@ -476,13 +476,6 @@ class LSTMAttentionCarbonPrediction:
                 restore_best_weights=True, 
                 verbose=1,
                 min_delta=1e-6
-            ),
-            ReduceLROnPlateau(
-                monitor='val_loss',
-                patience=25,  # 增加至25
-                factor=0.5,
-                min_lr=1e-8,
-                verbose=1
             ),
             tf.keras.callbacks.ModelCheckpoint(
                 filepath=os.path.join(OUTPUT_DIR, 'models', 'best_model.keras'),
