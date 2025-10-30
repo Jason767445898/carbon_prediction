@@ -46,7 +46,7 @@ tf.random.set_seed(42)
 
 CONFIG = {
     'data_file': 'data.dta',
-    'target_column': 'carbon_price_hb_ea',  # 碳价格列
+    'target_column': 'coal_price',  # 碳价格列
     'sequence_length': 60,  # 第八轮优化:减少至60(提高样本利用率)
     'test_size': 0.2,
     'validation_size': 0.1,
