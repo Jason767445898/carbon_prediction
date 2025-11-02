@@ -50,15 +50,15 @@ CONFIG = {
     'sequence_length': 60,  # 序列长度
     'test_size': 0.2,
     'validation_size': 0.1,
-    'epochs': 300,  # 煤炭价格优化第一轮最优配置
-    'batch_size': 32,  # 煤炭价格优化第一轮最优配置
-    'learning_rate': 0.00015,  # 煤炭价格优化第一轮最优配置(Config3)
-    'lstm_units': 384,  # 煤炭价格优化第一轮最优配置:增加至384
-    'lstm_units_2': 192,  # 煤炭价格优化第一轮最优配置:增加至192
-    'lstm_units_3': 96,  # 煤炭价格优化第一轮最优配置:增加至96
-    'attention_dim': 192,  # 煤炭价格优化第一轮最优配置:增加至192
-    'dropout_rate': 0.4,  # 煤炭价格优化第一轮最优配置:增加至0.4
-    'l2_reg': 0.001,  # 煤炭价格优化第一轮最优配置:增加至0.001
+    'epochs': 400,  # 煤炭价格优化第二轮最优配置(Round2_Config3)
+    'batch_size': 32,  # 煤炭价格优化第二轮最优配置
+    'learning_rate': 0.00015,  # 煤炭价格优化第二轮最优配置
+    'lstm_units': 384,  # 煤炭价格优化第二轮最优配置
+    'lstm_units_2': 192,  # 煤炭价格优化第二轮最优配置
+    'lstm_units_3': 96,  # 煤炭价格优化第二轮最优配置
+    'attention_dim': 256,  # 煤炭价格优化第二轮最优配置:增加至256(关键改进!)
+    'dropout_rate': 0.4,  # 煤炭价格优化第二轮最优配置
+    'l2_reg': 0.001,  # 煤炭价格优化第二轮最优配置
     'gradient_clip': 1.0,  # 梯度裁剪阈值
 }
 
@@ -213,10 +213,10 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
         # 确保输出不为NaN
         return tf.where(tf.math.is_nan(total_loss), huber, total_loss)
     
-    # 煤炭价格优化第一轮最优配置:CosineDecay适配learning_rate=0.00015
+    # 煤炭价格优化第二轮最优配置:CosineDecay适配learning_rate=0.00015
     lr_schedule = tf.keras.optimizers.schedules.CosineDecay(
         initial_learning_rate=CONFIG['learning_rate'],  # 0.00015
-        decay_steps=CONFIG['epochs'] * 50,  # 300*50=15000步
+        decay_steps=CONFIG['epochs'] * 50,  # 400*50=20000步
         alpha=0.02  # 最终学习率=0.00015*0.02=3e-06
     )
     
