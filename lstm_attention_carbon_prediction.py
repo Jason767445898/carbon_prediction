@@ -104,7 +104,7 @@ def create_attention_layer(input_tensor, attention_dim):
 
 def build_lstm_attention_model(sequence_length, n_features, lstm_units, attention_dim):
     """
-    构建深层LSTM + Attention组合模型（三层LSTM + 增强正则化）
+    构建深层LSTM + Attention组合模型（支持2层或3层LSTM + 增强正则化）
     """
     inputs = layers.Input(shape=(sequence_length, n_features))
     
@@ -130,16 +130,20 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
     )(lstm_out)
     lstm_out = layers.BatchNormalization()(lstm_out)
     
-    # 第三层LSTM - 较小容量
-    lstm_out = layers.LSTM(
-        CONFIG['lstm_units_3'], 
-        return_sequences=True,
-        dropout=0.2,
-        recurrent_dropout=0.1,
-        kernel_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg']),
-        recurrent_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg'])
-    )(lstm_out)
-    lstm_out = layers.BatchNormalization()(lstm_out)
+    # 第三层LSTM - 较小容量 (如果lstm_units_3 > 0)
+    if CONFIG.get('lstm_units_3', 96) > 0:
+        lstm_out = layers.LSTM(
+            CONFIG['lstm_units_3'], 
+            return_sequences=True,
+            dropout=0.2,
+            recurrent_dropout=0.1,
+            kernel_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg']),
+            recurrent_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg'])
+        )(lstm_out)
+        lstm_out = layers.BatchNormalization()(lstm_out)
+        last_lstm_units = CONFIG['lstm_units_3']
+    else:
+        last_lstm_units = CONFIG['lstm_units_2']
     
     # Attention层 + 残差连接
     attention_out = create_attention_layer(lstm_out, attention_dim)
@@ -147,8 +151,8 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
     # 残差连接：将LSTM聚合表示与attention输出相加
     lstm_pooled = layers.GlobalAveragePooling1D(name='lstm_pooling')(lstm_out)
     
-    # 维度匹配：如果attention_dim与lstm_units_3不同，需要投影
-    if attention_dim != CONFIG['lstm_units_3']:
+    # 维度匹配：如果attention_dim与最后一层LSTM单元数不同，需要投影
+    if attention_dim != last_lstm_units:
         lstm_pooled = layers.Dense(attention_dim, name='residual_projection')(lstm_pooled)
     
     # 残差连接：Add层
