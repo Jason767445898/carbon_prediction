@@ -4,6 +4,12 @@
 碳价格预测系统 - LSTM + Attention机制
 使用 data.DTA 数据文件，采用 LSTM 和 Attention 机制的结合来预测碳价格
 输出包括：Excel表格、TXT文档、图片等分析结果
+
+当前配置：煤炭价格优化第五轮最优配置 (Round5_Config1_2LayerLSTM_384)
+- R² = 0.4620 (相比第二轮提升 +111%)
+- RMSE = 105.23
+- MAPE = 8.90%
+- 核心改进：2层LSTM架构(384-192) + 单头Attention + 禁用第三层LSTM
 """
 
 import numpy as np
@@ -50,21 +56,22 @@ CONFIG = {
     'sequence_length': 60,  # 序列长度
     'test_size': 0.2,
     'validation_size': 0.1,
-    'epochs': 400,  # 煤炭价格优化第二轮最优配置(Round2_Config3)
-    'batch_size': 32,  # 煤炭价格优化第二轮最优配置
-    'learning_rate': 0.00015,  # 煤炭价格优化第二轮最优配置
-    'lstm_units': 384,  # 煤炭价格优化第二轮最优配置
-    'lstm_units_2': 192,  # 煤炭价格优化第二轮最优配置
-    'lstm_units_3': 96,  # 煤炭价格优化第二轮最优配置
-    'attention_dim': 256,  # 煤炭价格优化第二轮最优配置:增加至256(关键改进!)
-    'dropout_rate': 0.4,  # 煤炭价格优化第二轮最优配置
-    'l2_reg': 0.001,  # 煤炭价格优化第二轮最优配置
+    'epochs': 400,  # 煤炭价格优化第五轮最优配置(Round5_Config1_2LayerLSTM_384)
+    'batch_size': 32,  # 煤炭价格优化第五轮最优配置
+    'learning_rate': 0.00015,  # 煤炭价格优化第五轮最优配置
+    'lstm_units': 384,  # 煤炭价格优化第五轮最优配置
+    'lstm_units_2': 192,  # 煤炭价格优化第五轮最优配置
+    'lstm_units_3': 0,  # 煤炭价格优化第五轮最优配置:禁用第三层(关键改进!R²=0.462)
+    'attention_dim': 256,  # 煤炭价格优化第五轮最优配置
+    'dropout_rate': 0.4,  # 煤炭价格优化第五轮最优配置
+    'l2_reg': 0.001,  # 煤炭价格优化第五轮最优配置
     'gradient_clip': 1.0,  # 梯度裁剪阈值
+    'num_attention_heads': 1,  # 煤炭价格优化第五轮最优配置:单头Attention(稳定性关键)
 }
 
 # 输出目录
 OUTPUT_DIR = 'outputs'
-for sub_dir in ['logs', 'reports', 'visualizations']:
+for sub_dir in ['logs', 'reports', 'visualizations', 'models']:
     os.makedirs(os.path.join(OUTPUT_DIR, sub_dir), exist_ok=True)
 
 # ============================================================================
@@ -131,7 +138,7 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
     lstm_out = layers.BatchNormalization()(lstm_out)
     
     # 第三层LSTM - 较小容量 (如果lstm_units_3 > 0)
-    if CONFIG.get('lstm_units_3', 96) > 0:
+    if CONFIG.get('lstm_units_3', 0) > 0:
         lstm_out = layers.LSTM(
             CONFIG['lstm_units_3'], 
             return_sequences=True,
@@ -142,8 +149,10 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
         )(lstm_out)
         lstm_out = layers.BatchNormalization()(lstm_out)
         last_lstm_units = CONFIG['lstm_units_3']
+        print(f"   ✓ 使用3层LSTM架构: {CONFIG['lstm_units']}-{CONFIG['lstm_units_2']}-{CONFIG['lstm_units_3']}")
     else:
         last_lstm_units = CONFIG['lstm_units_2']
+        print(f"   ✓ 使用2层LSTM架构: {CONFIG['lstm_units']}-{CONFIG['lstm_units_2']} (第三层已禁用)")
     
     # Attention层 + 残差连接
     attention_out = create_attention_layer(lstm_out, attention_dim)
