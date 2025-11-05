@@ -115,7 +115,7 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
     """
     inputs = layers.Input(shape=(sequence_length, n_features))
     
-    # 第一层LSTM - 最大容量
+    # 第一层LSTM - 必需层
     lstm_out = layers.LSTM(
         CONFIG['lstm_units'], 
         return_sequences=True,
@@ -125,22 +125,12 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
         recurrent_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg'])
     )(inputs)
     lstm_out = layers.BatchNormalization()(lstm_out)
+    last_lstm_units = CONFIG['lstm_units']
     
-    # 第二层LSTM - 中等容量
-    lstm_out = layers.LSTM(
-        CONFIG['lstm_units_2'], 
-        return_sequences=True,
-        dropout=0.2,
-        recurrent_dropout=0.1,
-        kernel_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg']),
-        recurrent_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg'])
-    )(lstm_out)
-    lstm_out = layers.BatchNormalization()(lstm_out)
-    
-    # 第三层LSTM - 较小容量 (如果lstm_units_3 > 0)
-    if CONFIG.get('lstm_units_3', 0) > 0:
+    # 第二层LSTM - 中等容量 (如果lstm_units_2 > 0)
+    if CONFIG.get('lstm_units_2', 0) > 0:
         lstm_out = layers.LSTM(
-            CONFIG['lstm_units_3'], 
+            CONFIG['lstm_units_2'], 
             return_sequences=True,
             dropout=0.2,
             recurrent_dropout=0.1,
@@ -148,11 +138,25 @@ def build_lstm_attention_model(sequence_length, n_features, lstm_units, attentio
             recurrent_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg'])
         )(lstm_out)
         lstm_out = layers.BatchNormalization()(lstm_out)
-        last_lstm_units = CONFIG['lstm_units_3']
-        print(f"   ✓ 使用3层LSTM架构: {CONFIG['lstm_units']}-{CONFIG['lstm_units_2']}-{CONFIG['lstm_units_3']}")
-    else:
         last_lstm_units = CONFIG['lstm_units_2']
-        print(f"   ✓ 使用2层LSTM架构: {CONFIG['lstm_units']}-{CONFIG['lstm_units_2']} (第三层已禁用)")
+        
+        # 第三层LSTM - 较小容量 (如果lstm_units_3 > 0)
+        if CONFIG.get('lstm_units_3', 0) > 0:
+            lstm_out = layers.LSTM(
+                CONFIG['lstm_units_3'], 
+                return_sequences=True,
+                dropout=0.2,
+                recurrent_dropout=0.1,
+                kernel_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg']),
+                recurrent_regularizer=tf.keras.regularizers.l2(CONFIG['l2_reg'])
+            )(lstm_out)
+            lstm_out = layers.BatchNormalization()(lstm_out)
+            last_lstm_units = CONFIG['lstm_units_3']
+            print(f"   ✓ 使用3层LSTM架构: {CONFIG['lstm_units']}-{CONFIG['lstm_units_2']}-{CONFIG['lstm_units_3']}")
+        else:
+            print(f"   ✓ 使用2层LSTM架构: {CONFIG['lstm_units']}-{CONFIG['lstm_units_2']} (第三层已禁用)")
+    else:
+        print(f"   ✓ 使用单层LSTM架构: {CONFIG['lstm_units']} (第二、三层已禁用)")
     
     # Attention层 + 残差连接
     attention_out = create_attention_layer(lstm_out, attention_dim)
