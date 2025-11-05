@@ -340,8 +340,8 @@ class LSTMAttentionCarbonPrediction:
         # 特征工程 - 增强版（使用shift避免数据泄露）
         print("   • Creating lag-shifted technical indicators to prevent data leakage...")
         
-        # 第八轮优化:移除shift(1)策略,恢复更多有效样本
-        print("   • 第八轮优化:移除shift(1),增加有效样本数...")
+        # 第五轮优化:移除shift(1)策略,恢复更多有效样本
+        print("   • 特征工程:移除shift(1),增加有效样本数...")
         
         # 基础滞后特征 - 减少冗余,仅保留关键lag
         for lag in [1, 3, 7]:
@@ -398,14 +398,20 @@ class LSTMAttentionCarbonPrediction:
             rs = gain / (loss + 1e-10)
             df[f'rsi_{period}'] = 100 - (100 / (1 + rs))
         
-        # 第八轮优化:排除冗余特征,保留高质量特征
+        # 第五轮优化:排除冗余特征,保留高质量特征(仅针对煤炭价格)
+        # 注意:仅排除与目标变量直接相关或严重冗余的特征
         leakage_features = [
-            'log_carbon_price_hb_ea',  # 目标变量的对数形式
-            'log_transactionamount_hb_ea',  # 可能包含未来信息
-            'log_transactionamount_hb_ea_sqr',  # 交易量的对数平方
             'ema_12',  # 与MACD重复
             'ema_26',  # 与MACD重复
         ]
+        
+        # 如果目标是碳价格,额外排除碳价格相关特征
+        if target == 'carbon_price_hb_ea':
+            leakage_features.extend([
+                'log_carbon_price_hb_ea',  # 目标变量的对数形式
+                'log_transactionamount_hb_ea',  # 可能包含未来信息
+                'log_transactionamount_hb_ea_sqr',  # 交易量的对数平方
+            ])
         
         feature_cols = [col for col in df.columns 
                        if col != target and col not in leakage_features]
@@ -515,7 +521,7 @@ class LSTMAttentionCarbonPrediction:
         print("\n模型架构:")
         self.model.summary()
         
-        # 第八轮优化:调整回调参数(移除ReduceLROnPlateau避免与CosineDecay冲突)
+        # 第五轮优化:调整回调参数(移除ReduceLROnPlateau避免与CosineDecay冲突)
         callbacks = [
             EarlyStopping(
                 monitor='val_loss', 
