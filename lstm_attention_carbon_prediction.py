@@ -56,17 +56,17 @@ CONFIG = {
     'sequence_length': 60,  # 序列长度
     'test_size': 0.2,
     'validation_size': 0.1,
-    'epochs': 400,  # 煤炭价格优化第五轮最优配置(Round5_Config1_2LayerLSTM_384)
-    'batch_size': 32,  # 煤炭价格优化第五轮最优配置
-    'learning_rate': 0.00015,  # 煤炭价格优化第五轮最优配置
-    'lstm_units': 384,  # 煤炭价格优化第五轮最优配置
-    'lstm_units_2': 192,  # 煤炭价格优化第五轮最优配置
-    'lstm_units_3': 0,  # 煤炭价格优化第五轮最优配置:禁用第三层(关键改进!R²=0.462)
-    'attention_dim': 256,  # 煤炭价格优化第五轮最优配置
-    'dropout_rate': 0.4,  # 煤炭价格优化第五轮最优配置
-    'l2_reg': 0.001,  # 煤炭价格优化第五轮最优配置
+    'epochs': 400,  # 煤炭价格优化第7轮最优配置(Round7_Config4_2Layer384_LowDrop)
+    'batch_size': 32,  # 煤炭价格优化第7轮最优配置
+    'learning_rate': 0.00015,  # 煤炭价格优化第7轮最优配置
+    'lstm_units': 384,  # 煤炭价格优化第7轮最优配置
+    'lstm_units_2': 192,  # 煤炭价格优化第7轮最优配置
+    'lstm_units_3': 0,  # 煤炭价格优化第7轮最优配置:禁用第三层(关键改进!R²=0.462)
+    'attention_dim': 256,  # 煤炭价格优化第7轮最优配置
+    'dropout_rate': 0.35,  # 煤炭价格优化第7轮最优配置
+    'l2_reg': 0.0008,  # 煤炭价格优化第7轮最优配置
     'gradient_clip': 1.0,  # 梯度裁剪阈值
-    'num_attention_heads': 1,  # 煤炭价格优化第五轮最优配置:单头Attention(稳定性关键)
+    'num_attention_heads': 1,  # 煤炭价格优化第7轮最优配置:单头Attention(稳定性关键)
 }
 
 # 输出目录
