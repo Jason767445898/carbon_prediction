@@ -1,0 +1,50 @@
+================================================================================
+煤炭价格预测模型 - 第一轮参数优化报告
+================================================================================
+生成时间: 2025-11-08 22:20:44
+配置总数: 20
+成功运行: 20
+
+================================================================================
+Top 10 配置（按R²排序）
+================================================================================
+
+Config_17_LargeAttention:
+  R² = -0.9781, RMSE = 145.0433, MAE = 120.7097, MAPE = 13.42%
+  参数: Seq=50, LSTM=[64], Attn=96, LR=0.0005, Batch=24, L2=0.006
+
+Config_08_TwoLayer_Aggressive:
+  R² = -1.5622, RMSE = 164.2747, MAE = 114.4663, MAPE = 11.14%
+  参数: Seq=60, LSTM=[80x40], Attn=40, LR=0.0002, Batch=18, L2=0.005
+
+Config_09_ShortSeq_HighCap:
+  R² = -1.5817, RMSE = 173.0909, MAE = 152.1519, MAPE = 15.26%
+  参数: Seq=20, LSTM=[128], Attn=64, LR=0.001, Batch=32, L2=0.005
+
+Config_15_HighLR_LargeBatch:
+  R² = -3.2762, RMSE = 213.2573, MAE = 189.1504, MAPE = 19.12%
+  参数: Seq=50, LSTM=[96], Attn=48, LR=0.002, Batch=48, L2=0.01
+
+Config_19_BalancedAttention:
+  R² = -4.1349, RMSE = 233.6891, MAE = 208.5921, MAPE = 21.15%
+  参数: Seq=50, LSTM=[80], Attn=56, LR=0.0006, Batch=22, L2=0.007
+
+Config_14_MediumLR_MediumBatch:
+  R² = -4.1361, RMSE = 233.7171, MAE = 211.2714, MAPE = 21.51%
+  参数: Seq=50, LSTM=[80], Attn=40, LR=0.0007, Batch=20, L2=0.008
+
+Config_20_MinimalAttention:
+  R² = -4.3466, RMSE = 238.4579, MAE = 219.9218, MAPE = 22.49%
+  参数: Seq=50, LSTM=[112], Attn=16, LR=0.0008, Batch=28, L2=0.009
+
+Config_01_Simple_Strong_Reg:
+  R² = -4.5129, RMSE = 248.0418, MAE = 228.0906, MAPE = 23.24%
+  参数: Seq=30, LSTM=[64], Attn=32, LR=0.001, Batch=32, L2=0.01
+
+Config_10_MediumSeq_Balanced:
+  R² = -4.5220, RMSE = 245.1931, MAE = 224.9085, MAPE = 22.95%
+  参数: Seq=40, LSTM=[64], Attn=32, LR=0.0006, Batch=26, L2=0.008
+
+Config_16_AdaptiveLR_DynamicBatch:
+  R² = -4.6017, RMSE = 244.0818, MAE = 226.2104, MAPE = 23.21%
+  参数: Seq=50, LSTM=[72], Attn=36, LR=0.0004, Batch=16, L2=0.007
