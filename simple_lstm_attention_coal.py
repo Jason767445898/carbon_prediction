@@ -17,6 +17,15 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.ensemble import RandomForestRegressor
+
+# SHAP分析
+try:
+    import shap
+    SHAP_AVAILABLE = True
+except ImportError:
+    SHAP_AVAILABLE = False
+    print("⚠️ SHAP not available, skipping interpretability analysis")
 
 warnings.filterwarnings('ignore')
 
@@ -88,7 +97,7 @@ def create_simple_attention(input_tensor, attention_dim):
 
 def build_simple_lstm_attention(sequence_length, n_features):
     """
-    构建简单的单层 LSTM + Attention 模型
+    构建简单的单层 LSTM + Attention 模型（带残差连接）
     """
     inputs = layers.Input(shape=(sequence_length, n_features))
     
@@ -104,8 +113,21 @@ def build_simple_lstm_attention(sequence_length, n_features):
     # Attention 层
     attention_out = create_simple_attention(lstm_out, CONFIG['attention_dim'])
     
+    # 残差连接：将LSTM聚合表示与attention输出相加
+    lstm_pooled = layers.GlobalAveragePooling1D(name='lstm_pooling')(lstm_out)
+    
+    # 维度匹配：如果attention_dim与LSTM单元数不同，需要投影
+    if CONFIG['attention_dim'] != CONFIG['lstm_units']:
+        lstm_pooled = layers.Dense(CONFIG['attention_dim'], name='residual_projection')(lstm_pooled)
+    
+    # 残差连接：Add层
+    combined = layers.Add(name='residual_connection')([lstm_pooled, attention_out])
+    
+    # Layer Normalization
+    combined = layers.LayerNormalization(epsilon=1e-6, name='layer_norm')(combined)
+    
     # 全连接层
-    dense = layers.Dense(64, activation='relu')(attention_out)
+    dense = layers.Dense(64, activation='relu')(combined)
     dense = layers.BatchNormalization()(dense)
     dense = layers.Dropout(CONFIG['dropout_rate'])(dense)
     
@@ -141,6 +163,8 @@ class SimpleCoalPricePrediction:
         self.scaler_y = MinMaxScaler()
         self.feature_names = []
         self.run_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        self.shap_values = None
+        self.rf_model = None
         
     def load_data(self, file_path):
         """加载数据"""
@@ -289,6 +313,7 @@ class SimpleCoalPricePrediction:
         print(f"\n模型架构:")
         print(f"   • 单层 LSTM: {CONFIG['lstm_units']} units")
         print(f"   • Attention维度: {CONFIG['attention_dim']}")
+        print(f"   • 残差连接: 已启用")
         self.model.summary()
         
         # 回调函数
@@ -357,6 +382,53 @@ class SimpleCoalPricePrediction:
         }
         
         return results
+    
+    def perform_shap_analysis(self, X_train_ml, y_train_ml, X_test_ml):
+        """执行SHAP可解释性分析"""
+        if not SHAP_AVAILABLE:
+            print("\n⚠️ SHAP未安装，跳过可解释性分析")
+            return None
+        
+        print("\n🔍 执行SHAP分析...")
+        
+        # 训练随机森林模型用于SHAP分析
+        print("   • 训练随机森林模型...")
+        self.rf_model = RandomForestRegressor(
+            n_estimators=100,
+            max_depth=10,
+            random_state=42,
+            n_jobs=-1
+        )
+        self.rf_model.fit(X_train_ml, y_train_ml)
+        
+        # 创建SHAP解释器
+        print("   • 创建SHAP解释器...")
+        explainer = shap.TreeExplainer(self.rf_model)
+        
+        # 计算SHAP值（使用测试集样本）
+        print("   • 计算SHAP值...")
+        shap_values = explainer.shap_values(X_test_ml[:100])  # 使用前100个样本
+        
+        # 特征重要性
+        feature_importance = pd.DataFrame({
+            'Feature': self.feature_names,
+            'Importance': np.abs(shap_values).mean(axis=0)
+        }).sort_values('Importance', ascending=False)
+        
+        print(f"\n   Top 10 重要特征:")
+        for idx, row in feature_importance.head(10).iterrows():
+            print(f"      {row['Feature']:30s}: {row['Importance']:.6f}")
+        
+        self.shap_values = {
+            'values': shap_values,
+            'explainer': explainer,
+            'feature_importance': feature_importance,
+            'X_test_sample': X_test_ml[:100]
+        }
+        
+        print("\n✅ SHAP分析完成")
+        
+        return self.shap_values
     
     def visualize(self, results):
         """生成可视化"""
@@ -435,6 +507,53 @@ class SimpleCoalPricePrediction:
         plt.savefig(os.path.join(OUTPUT_DIR, f'{self.run_timestamp}_scatter.png'), dpi=300)
         plt.close()
         
+        # 4. SHAP可视化
+        if self.shap_values is not None and SHAP_AVAILABLE:
+            print("   • 创建SHAP可视化...")
+            
+            # SHAP Summary Plot
+            plt.figure(figsize=(10, 8))
+            shap.summary_plot(
+                self.shap_values['values'], 
+                self.shap_values['X_test_sample'],
+                feature_names=self.feature_names,
+                show=False
+            )
+            plt.title('SHAP Feature Importance Summary', fontsize=14, fontweight='bold', pad=20)
+            plt.tight_layout()
+            plt.savefig(os.path.join(OUTPUT_DIR, f'{self.run_timestamp}_shap_summary.png'),
+                       dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            # SHAP Bar Plot
+            plt.figure(figsize=(10, 8))
+            shap.summary_plot(
+                self.shap_values['values'],
+                self.shap_values['X_test_sample'],
+                feature_names=self.feature_names,
+                plot_type="bar",
+                show=False
+            )
+            plt.title('SHAP Feature Importance (Bar)', fontsize=14, fontweight='bold', pad=20)
+            plt.tight_layout()
+            plt.savefig(os.path.join(OUTPUT_DIR, f'{self.run_timestamp}_shap_bar.png'),
+                       dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            # Feature Importance Comparison
+            fig, ax = plt.subplots(figsize=(10, 6))
+            top_features = self.shap_values['feature_importance'].head(15)
+            ax.barh(range(len(top_features)), top_features['Importance'])
+            ax.set_yticks(range(len(top_features)))
+            ax.set_yticklabels(top_features['Feature'])
+            ax.set_xlabel('Mean |SHAP Value|')
+            ax.set_title('Top 15 Important Features (SHAP)', fontsize=12, fontweight='bold')
+            ax.grid(True, alpha=0.3, axis='x')
+            plt.tight_layout()
+            plt.savefig(os.path.join(OUTPUT_DIR, f'{self.run_timestamp}_feature_importance.png'),
+                       dpi=300, bbox_inches='tight')
+            plt.close()
+        
         print(f"✅ 可视化图表已保存到: {OUTPUT_DIR}")
     
     def save_report(self, results):
@@ -467,7 +586,12 @@ class SimpleCoalPricePrediction:
             f.write("📁 生成文件:\n")
             f.write(f"   • 训练历史图: {self.run_timestamp}_training.png\n")
             f.write(f"   • 预测对比图: {self.run_timestamp}_predictions.png\n")
-            f.write(f"   • 散点分布图: {self.run_timestamp}_scatter.png\n\n")
+            f.write(f"   • 散点分布图: {self.run_timestamp}_scatter.png\n")
+            if self.shap_values is not None:
+                f.write(f"   • SHAP摘要图: {self.run_timestamp}_shap_summary.png\n")
+                f.write(f"   • SHAP条形图: {self.run_timestamp}_shap_bar.png\n")
+                f.write(f"   • 特征重要性图: {self.run_timestamp}_feature_importance.png\n")
+            f.write("\n")
             
             f.write("=" * 80 + "\n")
         
@@ -494,10 +618,28 @@ class SimpleCoalPricePrediction:
         # 5. 评估模型
         results = self.evaluate(X_test, y_test)
         
-        # 6. 可视化
+        # 6. SHAP分析
+        if SHAP_AVAILABLE:
+            # 准备用于SHAP的数据（不使用序列）
+            target = CONFIG['target_column']
+            n = len(df)
+            train_size = int(n * (1 - CONFIG['test_size']))
+            
+            X_train_ml = df[self.feature_names].iloc[:train_size].values
+            y_train_ml = df[target].iloc[:train_size].values
+            X_test_ml = df[self.feature_names].iloc[train_size:].values
+            
+            # 处理NaN
+            X_train_ml = np.nan_to_num(X_train_ml, nan=0.0)
+            y_train_ml = np.nan_to_num(y_train_ml, nan=0.0)
+            X_test_ml = np.nan_to_num(X_test_ml, nan=0.0)
+            
+            self.perform_shap_analysis(X_train_ml, y_train_ml, X_test_ml)
+        
+        # 7. 可视化
         self.visualize(results)
         
-        # 7. 保存报告
+        # 8. 保存报告
         self.save_report(results)
         
         print("\n" + "="*80)
