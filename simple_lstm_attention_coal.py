@@ -48,39 +48,39 @@ CONFIG = {
     'target_column': 'coal_price',     # 预测目标列：煤炭价格
     
     # ========== 序列与数据划分 ==========
-    'sequence_length': 30,             # 🔥 进一步减小序列长度（45→30，减少时间依赖复杂度）
+    'sequence_length': 15,             # 🔥 优化建议：大幅减小序列长度（30→15，降低复杂度）
     'test_size': 0.2,                  # 测试集比例：20%
     'validation_size': 0.1,            # 验证集比例：10%
     
-    # ========== 训练超参数（激进优化） ==========
-    'epochs': 500,                     # 🔥 增加至500轮（给予充足学习时间）
-    'batch_size': 16,                  # 🔥 继续减小批次（32→16，更细粒度梯度）
-    'learning_rate': 0.0003,           # 🔥 提升学习率（0.0001→0.0003，更快收敛）
+    # ========== 训练超参数（简化优化） ==========
+    'epochs': 300,                     # 🔥 优化建议：减少训练轮次（避免过拟合）
+    'batch_size': 32,                  # 🔥 优化建议：增大批次（16→32，更稳定）
+    'learning_rate': 0.001,            # 🔥 优化建议：提高学习率（更快收敛）
     'use_lr_scheduler': True,          # 启用学习率衰减
-    'lr_patience': 10,                 # 🔥 降低patience（15→10，更快衰减）
-    'lr_factor': 0.3,                  # 🔥 更大衰减（0.5→0.3，强制精细调优）
+    'lr_patience': 15,                 # 🔥 优化建议：增大patience（更稳定）
+    'lr_factor': 0.5,                  # 🔥 优化建议：温和衰减（0.3→0.5）
     'use_gradient_clip': True,         # 🔥 新增：启用梯度裁剪
     'gradient_clip_value': 1.0,        # 🔥 新增：梯度裁剪阈值
     
-    # ========== 模型架构参数（激进简化） ==========
-    'num_lstm_layers': 2,              # 🔥 新增：改为双层LSTM（增强特征提取）
-    'lstm_units': [96, 64],            # 🔥 双层LSTM单元数（递减架构）
-    'attention_dim': 64,               # 🔥 降低attention维度（128→64，简化）
-    'lstm_dropout': 0.2,               # 🔥 降低dropout（0.3→0.2，允许更多学习）
-    'lstm_recurrent_dropout': 0.1,     # 🔥 降低recurrent dropout（0.2→0.1）
-    'dropout_rate': 0.3,               # 🔥 降低全连接dropout（0.4→0.3）
-    'dense_units_1': 96,               # 🔥 减小第一层（128→96）
-    'dense_units_2': 48,               # 🔥 减小第二层（64→48）
+    # ========== 模型架构参数（极简化） ==========
+    'num_lstm_layers': 1,              # 🔥 优化建议：改为单层LSTM（避免过拟合）
+    'lstm_units': [64],                # 🔥 优化建议：减少单元数（降低复杂度）
+    'attention_dim': 32,               # 🔥 优化建议：降低attention维度（64→32）
+    'lstm_dropout': 0.3,               # 🔥 优化建议：增大dropout（防止过拟合）
+    'lstm_recurrent_dropout': 0.2,     # 🔥 优化建议：增大recurrent dropout
+    'dropout_rate': 0.4,               # 🔥 优化建议：增大全连接dropout
+    'dense_units_1': 32,               # 🔥 优化建议：大幅减小第一层
+    'dense_units_2': 16,               # 🔥 优化建议：大幅减小第二层
     'use_l2_reg': True,                # 启用L2正则化
-    'l2_lambda': 0.0005,               # 🔥 减弱L2（0.001→0.0005，允许更多学习）
+    'l2_lambda': 0.001,                # 🔥 优化建议：增强L2正则化
     
-    # ========== 数据处理参数（激进特征工程） ==========
-    'scaler_type': 'standard',         # 🔥 改用StandardScaler（对煤炭价格可能更合适）
-    'remove_outliers': True,           # 🔥 重新启用异常值移除（但更宽松）
-    'outlier_threshold': 5.0,          # 🔥 更宽松阈值（4.0→5.0）
-    'feature_selection': False,         # 🔥 禁用特征选择（使用所有原始特征）
-    'top_features': 40,                # 🔥 适度选择（50→40，去除低相关特征）
-    'data_augmentation': True,         # 🔥 启用数据增强（增加训练样本多样性）
+    # ========== 数据处理参数（极简特征工程 - 仅MA5） ==========
+    'scaler_type': 'robust',           # 🔥 优化建议：改用RobustScaler（对异常值更鲁棒）
+    'remove_outliers': True,           # 🔥 保持异常值移除
+    'outlier_threshold': 4.0,          # 🔥 优化建议：更严格阈值（移除明显异常）
+    'feature_selection': True,         # 🔥 优化建议：启用特征选择（只保留最重要特征）
+    'top_features': 10,                # 🔥 优化建议：只保留10个最重要特征（极简化）
+    'data_augmentation': False,        # 🔥 优化建议：禁用数据增强（避免引入噪声）
     'augmentation_noise': 0.01,        # 🔥 适度噪声（0.005→0.01）
     'augmentation_ratio': 0.2,         # 🔥 新增：增强20%的训练数据
 }
@@ -321,9 +321,9 @@ class SimpleCoalPricePrediction:
         cols_to_keep = [target] + available_features
         df = df[cols_to_keep]
         
-        # 🔥 新增：为所有特征添加移动平均（MA）
-        print("      • 添加移动平均（MA）特征...")
-        ma_windows = [5, 10, 20]  # 5日、10日、20日移动平均
+        # 🔥 优化建议：只添加MA5移动平均
+        print("      • 添加MA5移动平均特征...")
+        ma_windows = [5]  # 🔥 只使用5日移动平均
         ma_count = 0
         
         for feature in available_features:
@@ -332,7 +332,7 @@ class SimpleCoalPricePrediction:
                 df[ma_col_name] = df[feature].rolling(window=window, min_periods=1).mean()
                 ma_count += 1
         
-        print(f"      ✅ 已添加 {ma_count} 个移动平均特征（{len(available_features)} 特征 × {len(ma_windows)} 窗口）")
+        print(f"      ✅ 已添加 {ma_count} 个MA5移动平均特征（{len(available_features)} 特征 × {len(ma_windows)} 窗口）")
         
         return df
     
