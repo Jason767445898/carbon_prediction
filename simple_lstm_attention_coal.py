@@ -184,39 +184,14 @@ class SimpleCoalPricePrediction:
         df[f'{target}_macd_signal'] = df[f'{target}_macd'].ewm(span=9, adjust=False).mean()
         df[f'{target}_macd_hist'] = df[f'{target}_macd'] - df[f'{target}_macd_signal']
         
-        # RSI - 相对强弱指标 (14日)
-        delta = df[target].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
-        rs = gain / (loss + 1e-10)
-        df[f'{target}_rsi'] = 100 - (100 / (1 + rs))
-        
-        # 布林带 - Bollinger Bands (20日)
-        rolling_mean = df[target].rolling(window=20, min_periods=1).mean()
-        rolling_std = df[target].rolling(window=20, min_periods=1).std()
-        df[f'{target}_bb_upper'] = rolling_mean + (rolling_std * 2)
-        df[f'{target}_bb_lower'] = rolling_mean - (rolling_std * 2)
-        df[f'{target}_bb_width'] = (df[f'{target}_bb_upper'] - df[f'{target}_bb_lower']) / rolling_mean
-        
-        # 威廉指标 - Williams %R (14日)
-        high_14 = df[target].rolling(window=14, min_periods=1).max()
-        low_14 = df[target].rolling(window=14, min_periods=1).min()
-        df[f'{target}_williams_r'] = -100 * ((high_14 - df[target]) / (high_14 - low_14 + 1e-10))
-        
         # 动量指标 - Momentum (10日)
         df[f'{target}_momentum'] = df[target].diff(10)
-        
-        # ROC - 变动率指标 (12日)
-        df[f'{target}_roc'] = ((df[target] - df[target].shift(12)) / (df[target].shift(12) + 1e-10)) * 100
         
         # EMA - 指数移动平均 (12, 26日)
         df[f'{target}_ema12'] = df[target].ewm(span=12, adjust=False).mean()
         df[f'{target}_ema26'] = df[target].ewm(span=26, adjust=False).mean()
         
-        # 标准差 - Volatility (20日)
-        df[f'{target}_std20'] = df[target].rolling(window=20, min_periods=1).std()
-        
-        print(f"      ✅ 已添加 coal_price 技术指标: MA(2,5,10) + MACD(3个) + RSI + BB(3个) + Williams%R + Momentum + ROC + EMA(2个) + STD")
+        print(f"      ✅ 已添加 coal_price 技术指标: MA(2,5,10) + MACD(3个) + Momentum + EMA(2个)")
         
         # 为其他特征添加MA5
         print("      • 添加其他特征MA5...")
