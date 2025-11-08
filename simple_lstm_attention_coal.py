@@ -48,41 +48,41 @@ CONFIG = {
     'target_column': 'coal_price',     # 预测目标列：煤炭价格
     
     # ========== 序列与数据划分 ==========
-    'sequence_length': 15,             # 🔥 优化建议：大幅减小序列长度（30→15，降低复杂度）
+    'sequence_length': 20,             # 🔥 优化：适度增加序列长度（15→20，捕捉更多时间依赖）
     'test_size': 0.2,                  # 测试集比例：20%
     'validation_size': 0.1,            # 验证集比例：10%
     
-    # ========== 训练超参数（简化优化） ==========
-    'epochs': 300,                     # 🔥 优化建议：减少训练轮次（避免过拟合）
-    'batch_size': 32,                  # 🔥 优化建议：增大批次（16→32，更稳定）
-    'learning_rate': 0.001,            # 🔥 优化建议：提高学习率（更快收敛）
+    # ========== 训练超参数（精细优化） ==========
+    'epochs': 400,                     # 🔥 优化：增加训练轮次（给予更多学习时间）
+    'batch_size': 16,                  # 🔥 优化：减小批次（更细粒度更新）
+    'learning_rate': 0.0005,           # 🔥 优化：降低学习率（更稳定收敛）
     'use_lr_scheduler': True,          # 启用学习率衰减
-    'lr_patience': 15,                 # 🔥 优化建议：增大patience（更稳定）
-    'lr_factor': 0.5,                  # 🔥 优化建议：温和衰减（0.3→0.5）
-    'use_gradient_clip': True,         # 🔥 新增：启用梯度裁剪
-    'gradient_clip_value': 1.0,        # 🔥 新增：梯度裁剪阈值
+    'lr_patience': 20,                 # 🔥 优化：更大patience（避免过早衰减）
+    'lr_factor': 0.6,                  # 🔥 优化：更温和衰减（保留学习能力）
+    'use_gradient_clip': True,         # 🔥 启用梯度裁剪
+    'gradient_clip_value': 1.0,        # 🔥 梯度裁剪阈值
     
-    # ========== 模型架构参数（极简化） ==========
-    'num_lstm_layers': 1,              # 🔥 优化建议：改为单层LSTM（避免过拟合）
-    'lstm_units': [64],                # 🔥 优化建议：减少单元数（降低复杂度）
-    'attention_dim': 32,               # 🔥 优化建议：降低attention维度（64→32）
-    'lstm_dropout': 0.3,               # 🔥 优化建议：增大dropout（防止过拟合）
-    'lstm_recurrent_dropout': 0.2,     # 🔥 优化建议：增大recurrent dropout
-    'dropout_rate': 0.4,               # 🔥 优化建议：增大全连接dropout
-    'dense_units_1': 32,               # 🔥 优化建议：大幅减小第一层
-    'dense_units_2': 16,               # 🔥 优化建议：大幅减小第二层
+    # ========== 模型架构参数（平衡优化） ==========
+    'num_lstm_layers': 2,              # 🔥 优化：改为双层LSTM（增强特征提取）
+    'lstm_units': [80, 48],            # 🔥 优化：适度增加单元数（递减架构）
+    'attention_dim': 48,               # 🔥 优化：增加attention维度（32→48）
+    'lstm_dropout': 0.25,              # 🔥 优化：降低dropout（允许更多学习）
+    'lstm_recurrent_dropout': 0.15,    # 🔥 优化：降低recurrent dropout
+    'dropout_rate': 0.35,              # 🔥 优化：降低全连接dropout
+    'dense_units_1': 48,               # 🔥 优化：增加第一层（增强表达能力）
+    'dense_units_2': 24,               # 🔥 优化：增加第二层
     'use_l2_reg': True,                # 启用L2正则化
-    'l2_lambda': 0.001,                # 🔥 优化建议：增强L2正则化
+    'l2_lambda': 0.0008,               # 🔥 优化：适度L2正则化
     
-    # ========== 数据处理参数（极简特征工程 - 仅MA5） ==========
-    'scaler_type': 'robust',           # 🔥 优化建议：改用RobustScaler（对异常值更鲁棒）
+    # ========== 数据处理参数（优化特征工程 - 仅MA5） ==========
+    'scaler_type': 'standard',         # 🔥 优化：改用StandardScaler（更适合LSTM）
     'remove_outliers': True,           # 🔥 保持异常值移除
-    'outlier_threshold': 4.0,          # 🔥 优化建议：更严格阈值（移除明显异常）
-    'feature_selection': True,         # 🔥 优化建议：启用特征选择（只保留最重要特征）
-    'top_features': 10,                # 🔥 优化建议：只保留10个最重要特征（极简化）
-    'data_augmentation': False,        # 🔥 优化建议：禁用数据增强（避免引入噪声）
-    'augmentation_noise': 0.01,        # 🔥 适度噪声（0.005→0.01）
-    'augmentation_ratio': 0.2,         # 🔥 新增：增强20%的训练数据
+    'outlier_threshold': 4.5,          # 🔥 优化：稍微放宽阈值（保留更多数据）
+    'feature_selection': True,         # 🔥 启用特征选择
+    'top_features': 15,                # 🔥 优化：增加到15个特征（10→15，平衡复杂度和信息量）
+    'data_augmentation': True,         # 🔥 优化：启用轻微数据增强（增加样本多样性）
+    'augmentation_noise': 0.005,       # 🔥 优化：降低噪声（避免过度扰动）
+    'augmentation_ratio': 0.15,        # 🔥 优化：降低增强比例（15%，避免过多噪声）
 }
 
 # 输出目录
@@ -270,21 +270,23 @@ class SimpleCoalPricePrediction:
             self.data['date'] = pd.to_datetime(self.data['date'])
             self.data.set_index('date', inplace=True)
         
-        # 🔥 筛选2017-2021年的数据，但排除2021年5月到2022年1月
+        # 🔥 筛选2017-2024年的数据，但排除2021年6月到2022年1月
         original_shape = self.data.shape
         
-        # 保留2017-2021年的数据
-        self.data = self.data[(self.data.index.year >= 2017) & (self.data.index.year <= 2021)]
+        # 保留2017-2024年的数据
+        self.data = self.data[(self.data.index.year >= 2017) & (self.data.index.year <= 2024)]
         
-        # 排除2021年5月到2022年1月的数据（2021年5月及以后的2021年数据）
-        exclude_condition = (self.data.index.year == 2021) & (self.data.index.month >= 5)
+        # 排除2021年6月到2022年1月的数据
+        exclude_start = pd.Timestamp('2021-06-01')
+        exclude_end = pd.Timestamp('2022-01-31')
+        exclude_condition = (self.data.index >= exclude_start) & (self.data.index <= exclude_end)
         self.data = self.data[~exclude_condition]
         
         print(f"✅ 数据加载成功")
         print(f"   • 原始数据形状: {original_shape}")
         print(f"   • 筛选后数据形状: {self.data.shape}")
         print(f"   • 时间范围: {self.data.index[0]} 到 {self.data.index[-1]}")
-        print(f"   • 筛选条件: 2017-2021年，排除2021年5月及之后")
+        print(f"   • 筛选条件: 2017-2024年，排除2021年6月到2022年1月")
         
         return self.data
     
@@ -292,24 +294,24 @@ class SimpleCoalPricePrediction:
         """使用原始数据列作为特征 + 添加所有特征的移动平均（MA）"""
         print("   • 使用原始数据列作为特征 + 添加移动平均（MA）...")
         
-        # 🎯 定义要使用的原始特征列（已移除log_coal_price、log_coal_price_sqr）
+        # 🎯 定义要使用的原始特征列（已移除log_coal_price、log_coal_price_sqr，以及指定排除的特征）
         original_features = [
             'oil_price',                        # 石油价格
             'gas_price',                        # 天然气价格
             'carbon_price_hb_ea',               # 碳价格(湖北)
-            'transactionamount_hb_ea',          # 交易量(湖北)
-            'aqi_hb',                           # 空气质量指数
-            'highest_temperature',              # 最高温度
+            # 'transactionamount_hb_ea',        # 交易量(湖北) - 已排除
+            # 'aqi_hb',                         # 空气质量指数 - 已排除
+            # 'highest_temperature',            # 最高温度 - 已排除
             'log_oil_price',                    # 对数石油价格
             'log_gas_price',                    # 对数天然气价格
             'log_carbon_price_hb_ea',           # 对数碳价格
-            'log_transactionamount_hb_ea',      # 对数交易量
-            'log_aqi_hb',                       # 对数空气质量指数
-            'log_highest_temperature',          # 对数最高温度
+            # 'log_transactionamount_hb_ea',    # 对数交易量 - 已排除
+            # 'log_aqi_hb',                     # 对数空气质量指数 - 已排除（因为aqi_hb被排除）
+            # 'log_highest_temperature',        # 对数最高温度 - 已排除（因为highest_temperature被排除）
             'log_oil_price_sqr',                # 对数石油价格平方
             'log_gas_price_sqr',                # 对数天然气价格平方
-            'log_transactionamount_hb_ea_sqr',  # 对数交易量平方
-            'log_aqi_hb_sqr',                   # 对数空气质量指数平方
+            # 'log_transactionamount_hb_ea_sqr', # 对数交易量平方 - 已排除
+            # 'log_aqi_hb_sqr',                 # 对数空气质量指数平方 - 已排除（因为aqi_hb被排除）
         ]
         
         # 打印可用的原始特征
@@ -332,7 +334,13 @@ class SimpleCoalPricePrediction:
                 df[ma_col_name] = df[feature].rolling(window=window, min_periods=1).mean()
                 ma_count += 1
         
-        print(f"      ✅ 已添加 {ma_count} 个MA5移动平均特征（{len(available_features)} 特征 × {len(ma_windows)} 窗口）")
+        # 🔥 新增：为 log_coal_price 添加 MA5（但不包含 log_coal_price 本身）
+        if 'log_coal_price' in df.columns:
+            print("      • 添加 log_coal_price 的 MA5 特征（不包含 log_coal_price 本身）...")
+            df['log_coal_price_ma5'] = df['log_coal_price'].rolling(window=5, min_periods=1).mean()
+            ma_count += 1
+        
+        print(f"      ✅ 已添加 {ma_count} 个MA5移动平均特征（{len(available_features)} 特征 + log_coal_price × 1 窗口）")
         
         return df
     
