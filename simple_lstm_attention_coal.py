@@ -14,10 +14,11 @@ from datetime import datetime
 import tensorflow as tf
 from tensorflow.keras import layers, Model
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import EarlyStopping
-from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.feature_selection import mutual_info_regression
 
 # SHAP分析
 try:
@@ -42,17 +43,46 @@ tf.random.set_seed(42)
 # ============================================================================
 
 CONFIG = {
-    'data_file': 'data.dta',
-    'target_column': 'coal_price',
-    'sequence_length': 60,
-    'test_size': 0.2,
-    'validation_size': 0.1,
-    'epochs': 200,
-    'batch_size': 32,
-    'learning_rate': 0.001,
-    'lstm_units': 128,           # 单层LSTM
-    'attention_dim': 128,
-    'dropout_rate': 0.3,
+    # ========== 数据配置 ==========
+    'data_file': 'data.dta',           # Stata数据文件路径
+    'target_column': 'coal_price',     # 预测目标列：煤炭价格
+    
+    # ========== 序列与数据划分 ==========
+    'sequence_length': 30,             # 🔥 进一步减小序列长度（45→30，减少时间依赖复杂度）
+    'test_size': 0.2,                  # 测试集比例：20%
+    'validation_size': 0.1,            # 验证集比例：10%
+    
+    # ========== 训练超参数（激进优化） ==========
+    'epochs': 500,                     # 🔥 增加至500轮（给予充足学习时间）
+    'batch_size': 16,                  # 🔥 继续减小批次（32→16，更细粒度梯度）
+    'learning_rate': 0.0003,           # 🔥 提升学习率（0.0001→0.0003，更快收敛）
+    'use_lr_scheduler': True,          # 启用学习率衰减
+    'lr_patience': 10,                 # 🔥 降低patience（15→10，更快衰减）
+    'lr_factor': 0.3,                  # 🔥 更大衰减（0.5→0.3，强制精细调优）
+    'use_gradient_clip': True,         # 🔥 新增：启用梯度裁剪
+    'gradient_clip_value': 1.0,        # 🔥 新增：梯度裁剪阈值
+    
+    # ========== 模型架构参数（激进简化） ==========
+    'num_lstm_layers': 2,              # 🔥 新增：改为双层LSTM（增强特征提取）
+    'lstm_units': [96, 64],            # 🔥 双层LSTM单元数（递减架构）
+    'attention_dim': 64,               # 🔥 降低attention维度（128→64，简化）
+    'lstm_dropout': 0.2,               # 🔥 降低dropout（0.3→0.2，允许更多学习）
+    'lstm_recurrent_dropout': 0.1,     # 🔥 降低recurrent dropout（0.2→0.1）
+    'dropout_rate': 0.3,               # 🔥 降低全连接dropout（0.4→0.3）
+    'dense_units_1': 96,               # 🔥 减小第一层（128→96）
+    'dense_units_2': 48,               # 🔥 减小第二层（64→48）
+    'use_l2_reg': True,                # 启用L2正则化
+    'l2_lambda': 0.0005,               # 🔥 减弱L2（0.001→0.0005，允许更多学习）
+    
+    # ========== 数据处理参数（激进特征工程） ==========
+    'scaler_type': 'standard',         # 🔥 改用StandardScaler（对煤炭价格可能更合适）
+    'remove_outliers': True,           # 🔥 重新启用异常值移除（但更宽松）
+    'outlier_threshold': 5.0,          # 🔥 更宽松阈值（4.0→5.0）
+    'feature_selection': False,         # 🔥 禁用特征选择（使用所有原始特征）
+    'top_features': 40,                # 🔥 适度选择（50→40，去除低相关特征）
+    'data_augmentation': True,         # 🔥 启用数据增强（增加训练样本多样性）
+    'augmentation_noise': 0.01,        # 🔥 适度噪声（0.005→0.01）
+    'augmentation_ratio': 0.2,         # 🔥 新增：增强20%的训练数据
 }
 
 # 输出目录
@@ -97,18 +127,45 @@ def create_simple_attention(input_tensor, attention_dim):
 
 def build_simple_lstm_attention(sequence_length, n_features):
     """
-    构建简单的单层 LSTM + Attention 模型（带残差连接）
+    构建双层 LSTM + Attention 模型（带残差连接）
+    激进优化版：双层LSTM + 更强特征提取
     """
     inputs = layers.Input(shape=(sequence_length, n_features))
     
-    # 单层 LSTM
-    lstm_out = layers.LSTM(
-        CONFIG['lstm_units'], 
-        return_sequences=True,
-        dropout=0.2,
-        recurrent_dropout=0.1
-    )(inputs)
-    lstm_out = layers.BatchNormalization()(lstm_out)
+    # 🔥 双层 LSTM（递减架构）
+    num_layers = CONFIG.get('num_lstm_layers', 2)
+    lstm_units_list = CONFIG.get('lstm_units', [96, 64])
+    
+    # 确保 lstm_units_list 是列表
+    if not isinstance(lstm_units_list, list):
+        lstm_units_list = [lstm_units_list]
+    
+    lstm_out = inputs
+    for i in range(num_layers):
+        units = lstm_units_list[i] if i < len(lstm_units_list) else lstm_units_list[-1]
+        return_sequences = (i < num_layers - 1) or True  # 最后一层也返回序列（给Attention使用）
+        
+        if CONFIG.get('use_l2_reg', False):
+            from tensorflow.keras import regularizers
+            lstm_out = layers.LSTM(
+                units,
+                return_sequences=return_sequences,
+                dropout=CONFIG.get('lstm_dropout', 0.2),
+                recurrent_dropout=CONFIG.get('lstm_recurrent_dropout', 0.1),
+                kernel_regularizer=regularizers.l2(CONFIG.get('l2_lambda', 0.0005)),
+                recurrent_regularizer=regularizers.l2(CONFIG.get('l2_lambda', 0.0005)),
+                name=f'lstm_layer_{i+1}'
+            )(lstm_out)
+        else:
+            lstm_out = layers.LSTM(
+                units,
+                return_sequences=return_sequences,
+                dropout=CONFIG.get('lstm_dropout', 0.2),
+                recurrent_dropout=CONFIG.get('lstm_recurrent_dropout', 0.1),
+                name=f'lstm_layer_{i+1}'
+            )(lstm_out)
+        
+        lstm_out = layers.BatchNormalization(name=f'bn_lstm_{i+1}')(lstm_out)
     
     # Attention 层
     attention_out = create_simple_attention(lstm_out, CONFIG['attention_dim'])
@@ -116,8 +173,9 @@ def build_simple_lstm_attention(sequence_length, n_features):
     # 残差连接：将LSTM聚合表示与attention输出相加
     lstm_pooled = layers.GlobalAveragePooling1D(name='lstm_pooling')(lstm_out)
     
-    # 维度匹配：如果attention_dim与LSTM单元数不同，需要投影
-    if CONFIG['attention_dim'] != CONFIG['lstm_units']:
+    # 维度匹配：最后LSTM层与attention维度对齐
+    final_lstm_units = lstm_units_list[-1] if isinstance(lstm_units_list, list) else lstm_units_list
+    if CONFIG['attention_dim'] != final_lstm_units:
         lstm_pooled = layers.Dense(CONFIG['attention_dim'], name='residual_projection')(lstm_pooled)
     
     # 残差连接：Add层
@@ -126,21 +184,52 @@ def build_simple_lstm_attention(sequence_length, n_features):
     # Layer Normalization
     combined = layers.LayerNormalization(epsilon=1e-6, name='layer_norm')(combined)
     
-    # 全连接层
-    dense = layers.Dense(64, activation='relu')(combined)
+    # 全连接层（优化结构）
+    dense_units_1 = CONFIG.get('dense_units_1', 96)
+    dense_units_2 = CONFIG.get('dense_units_2', 48)
+    
+    if CONFIG.get('use_l2_reg', False):
+        from tensorflow.keras import regularizers
+        dense = layers.Dense(
+            dense_units_1, 
+            activation='relu',
+            kernel_regularizer=regularizers.l2(CONFIG.get('l2_lambda', 0.0005))
+        )(combined)
+    else:
+        dense = layers.Dense(dense_units_1, activation='relu')(combined)
+    
     dense = layers.BatchNormalization()(dense)
     dense = layers.Dropout(CONFIG['dropout_rate'])(dense)
     
-    dense = layers.Dense(32, activation='relu')(dense)
-    dense = layers.Dropout(CONFIG['dropout_rate'] / 2)(dense)
+    if CONFIG.get('use_l2_reg', False):
+        from tensorflow.keras import regularizers
+        dense = layers.Dense(
+            dense_units_2, 
+            activation='relu',
+            kernel_regularizer=regularizers.l2(CONFIG.get('l2_lambda', 0.0005))
+        )(dense)
+    else:
+        dense = layers.Dense(dense_units_2, activation='relu')(dense)
+    
+    dense = layers.Dropout(CONFIG['dropout_rate'] * 0.6)(dense)
     
     # 输出层
     outputs = layers.Dense(1)(dense)
     
-    # 编译模型
+    # 编译模型（激进优化）
+    optimizer = Adam(learning_rate=CONFIG['learning_rate'])
+    
+    # 🔥 如果启用梯度裁剪，设置裁剪值
+    if CONFIG.get('use_gradient_clip', False):
+        optimizer = Adam(
+            learning_rate=CONFIG['learning_rate'],
+            clipvalue=CONFIG.get('gradient_clip_value', 1.0)
+        )
+        print(f"   • 启用梯度裁剪: {CONFIG.get('gradient_clip_value', 1.0)}")
+    
     model = Model(inputs=inputs, outputs=outputs)
     model.compile(
-        optimizer=Adam(learning_rate=CONFIG['learning_rate']),
+        optimizer=optimizer,
         loss='mse',
         metrics=['mae']
     )
@@ -159,8 +248,8 @@ class SimpleCoalPricePrediction:
         self.data = None
         self.model = None
         self.history = None
-        self.scaler_X = MinMaxScaler()
-        self.scaler_y = MinMaxScaler()
+        self.scaler_X = None  # 将在prepare_data中初始化
+        self.scaler_y = None  # 将在prepare_data中初始化
         self.feature_names = []
         self.run_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         self.shap_values = None
@@ -181,14 +270,135 @@ class SimpleCoalPricePrediction:
             self.data['date'] = pd.to_datetime(self.data['date'])
             self.data.set_index('date', inplace=True)
         
+        # 🔥 筛选2017-2021年的数据，但排除2021年5月到2022年1月
+        original_shape = self.data.shape
+        
+        # 保留2017-2021年的数据
+        self.data = self.data[(self.data.index.year >= 2017) & (self.data.index.year <= 2021)]
+        
+        # 排除2021年5月到2022年1月的数据（2021年5月及以后的2021年数据）
+        exclude_condition = (self.data.index.year == 2021) & (self.data.index.month >= 5)
+        self.data = self.data[~exclude_condition]
+        
         print(f"✅ 数据加载成功")
-        print(f"   • 数据形状: {self.data.shape}")
+        print(f"   • 原始数据形状: {original_shape}")
+        print(f"   • 筛选后数据形状: {self.data.shape}")
         print(f"   • 时间范围: {self.data.index[0]} 到 {self.data.index[-1]}")
+        print(f"   • 筛选条件: 2017-2021年，排除2021年5月及之后")
         
         return self.data
     
+    def create_enhanced_features(self, df, target):
+        """使用原始数据列作为特征 + 添加所有特征的移动平均（MA）"""
+        print("   • 使用原始数据列作为特征 + 添加移动平均（MA）...")
+        
+        # 🎯 定义要使用的原始特征列（已移除log_coal_price、log_coal_price_sqr）
+        original_features = [
+            'oil_price',                        # 石油价格
+            'gas_price',                        # 天然气价格
+            'carbon_price_hb_ea',               # 碳价格(湖北)
+            'transactionamount_hb_ea',          # 交易量(湖北)
+            'aqi_hb',                           # 空气质量指数
+            'highest_temperature',              # 最高温度
+            'log_oil_price',                    # 对数石油价格
+            'log_gas_price',                    # 对数天然气价格
+            'log_carbon_price_hb_ea',           # 对数碳价格
+            'log_transactionamount_hb_ea',      # 对数交易量
+            'log_aqi_hb',                       # 对数空气质量指数
+            'log_highest_temperature',          # 对数最高温度
+            'log_oil_price_sqr',                # 对数石油价格平方
+            'log_gas_price_sqr',                # 对数天然气价格平方
+            'log_transactionamount_hb_ea_sqr',  # 对数交易量平方
+            'log_aqi_hb_sqr',                   # 对数空气质量指数平方
+        ]
+        
+        # 打印可用的原始特征
+        available_features = [f for f in original_features if f in df.columns]
+        print(f"      ✅ 找到 {len(available_features)}/{len(original_features)} 个原始特征")
+        print(f"      特征列表: {available_features[:5]}...")
+        
+        # 只保留目标列和可用的原始特征
+        cols_to_keep = [target] + available_features
+        df = df[cols_to_keep]
+        
+        # 🔥 新增：为所有特征添加移动平均（MA）
+        print("      • 添加移动平均（MA）特征...")
+        ma_windows = [5, 10, 20]  # 5日、10日、20日移动平均
+        ma_count = 0
+        
+        for feature in available_features:
+            for window in ma_windows:
+                ma_col_name = f'{feature}_ma{window}'
+                df[ma_col_name] = df[feature].rolling(window=window, min_periods=1).mean()
+                ma_count += 1
+        
+        print(f"      ✅ 已添加 {ma_count} 个移动平均特征（{len(available_features)} 特征 × {len(ma_windows)} 窗口）")
+        
+        return df
+    
+    def remove_outliers(self, df, target):
+        """使用MAD方法移除异常值"""
+        if not CONFIG['remove_outliers']:
+            return df
+        
+        print("   • 移除异常值...")
+        original_len = len(df)
+        
+        # 对目标变量使用MAD方法
+        median = df[target].median()
+        mad = np.median(np.abs(df[target] - median))
+        threshold = CONFIG['outlier_threshold']
+        
+        # 计算修正的z-score
+        modified_z_scores = 0.6745 * (df[target] - median) / (mad + 1e-10)
+        
+        # 移除异常值
+        df = df[np.abs(modified_z_scores) < threshold]
+        
+        removed = original_len - len(df)
+        print(f"      移除了 {removed} 个异常值 ({removed/original_len*100:.2f}%)")
+        
+        return df
+    
+    def select_features(self, df, target):
+        """基于互信息的特征选择"""
+        if not CONFIG['feature_selection']:
+            return df
+        
+        print("   • 执行特征选择...")
+        
+        feature_cols = [col for col in df.columns if col != target]
+        
+        if len(feature_cols) <= CONFIG['top_features']:
+            print(f"      特征数量 ({len(feature_cols)}) <= 阈值 ({CONFIG['top_features']})，保留所有特征")
+            return df
+        
+        # 准备数据
+        X = df[feature_cols].fillna(0)
+        y = df[target]
+        
+        # 计算互信息
+        mi_scores = mutual_info_regression(X, y, random_state=42)
+        
+        # 创建特征重要性DataFrame
+        feature_importance = pd.DataFrame({
+            'feature': feature_cols,
+            'importance': mi_scores
+        }).sort_values('importance', ascending=False)
+        
+        # 选择top特征
+        top_features = feature_importance.head(CONFIG['top_features'])['feature'].tolist()
+        
+        print(f"      从 {len(feature_cols)} 个特征中选择了 {len(top_features)} 个最重要特征")
+        print(f"      Top 5 特征: {top_features[:5]}")
+        
+        # 保留目标列和选中的特征
+        selected_cols = [target] + top_features
+        
+        return df[selected_cols]
+    
     def preprocess_data(self):
-        """数据预处理 - 简化版本"""
+        """增强的数据预处理流程"""
         print("\n🔧 数据预处理...")
         
         df = self.data.copy()
@@ -200,36 +410,28 @@ class SimpleCoalPricePrediction:
         
         print(f"   • 原始形状: {df.shape}")
         
-        # 处理缺失值
+        # 1. 处理缺失值
+        print("   • 处理缺失值...")
         df = df.dropna(axis=1, how='all')
         df = df.fillna(method='ffill').fillna(method='bfill')
         
-        # 移除无穷大
+        # 2. 移除无穷大
         df = df.replace([np.inf, -np.inf], np.nan)
-        df = df.fillna(df.mean())
+        df = df.fillna(df.median())
         
-        # 简单的特征工程
-        print("   • 创建技术指标...")
+        # 3. 创建增强特征
+        df = self.create_enhanced_features(df, target)
         
-        # 滞后特征
-        for lag in [1, 3, 7]:
-            df[f'price_lag_{lag}'] = df[target].shift(lag)
-        
-        # 移动平均
-        for window in [5, 10, 20]:
-            df[f'ma_{window}'] = df[target].rolling(window, min_periods=1).mean()
-        
-        # 波动率
-        for window in [7, 14]:
-            df[f'volatility_{window}'] = df[target].rolling(window, min_periods=1).std()
-        
-        # 价格变化率
-        df['price_return'] = df[target].pct_change()
-        
-        # 删除包含 NaN 的行
+        # 4. 删除包含 NaN 的行
         df = df.dropna()
         
-        # 选择特征列
+        # 5. 移除异常值
+        df = self.remove_outliers(df, target)
+        
+        # 6. 特征选择
+        df = self.select_features(df, target)
+        
+        # 7. 获取最终特征列
         self.feature_names = [col for col in df.columns if col != target]
         
         print(f"✅ 数据预处理完成")
@@ -252,8 +454,70 @@ class SimpleCoalPricePrediction:
         
         return np.array(X), np.array(y)
     
+    def get_scaler(self, scaler_type):
+        """根据类型获取scaler"""
+        if scaler_type == 'minmax':
+            return MinMaxScaler()
+        elif scaler_type == 'standard':
+            return StandardScaler()
+        elif scaler_type == 'robust':
+            return RobustScaler()
+        else:
+            return MinMaxScaler()
+    
+    def augment_data(self, X, y):
+        """🔥 数据增强：添加噪声 + 时间扰动"""
+        if not CONFIG['data_augmentation']:
+            return X, y
+        
+        print("   • 应用数据增强...")
+        noise_level = CONFIG['augmentation_noise']
+        augment_ratio = CONFIG.get('augmentation_ratio', 0.2)
+        
+        # 计算增强样本数量
+        n_augmented = int(len(X) * augment_ratio)
+        
+        # 随机选择要增强的样本
+        indices = np.random.choice(len(X), n_augmented, replace=False)
+        
+        X_aug_list = []
+        y_aug_list = []
+        
+        for idx in indices:
+            # 方法1：高斯噪声
+            noise = np.random.normal(0, noise_level, X[idx].shape)
+            X_noisy = X[idx] + noise
+            X_aug_list.append(X_noisy)
+            y_aug_list.append(y[idx])
+            
+            # 方法2：缩放变换（轻微）
+            scale = np.random.uniform(0.98, 1.02)
+            X_scaled = X[idx] * scale
+            X_aug_list.append(X_scaled)
+            y_aug_list.append(y[idx] * scale)
+        
+        # 转换列表为数组（保持3D维度）
+        if len(X_aug_list) > 0:
+            X_aug_array = np.array(X_aug_list)  # shape: (n_augmented*2, seq_len, n_features)
+            y_aug_array = np.array(y_aug_list)  # shape: (n_augmented*2,)
+            
+            # 合并原始和增强数据
+            X_combined = np.concatenate([X, X_aug_array], axis=0)
+            y_combined = np.concatenate([y, y_aug_array], axis=0)
+            
+            # 打乱顺序
+            shuffle_idx = np.random.permutation(len(X_combined))
+            X_combined = X_combined[shuffle_idx]
+            y_combined = y_combined[shuffle_idx]
+            
+            print(f"      增强后：{len(X)} → {len(X_combined)} 样本 (+{len(X_aug_list)} 增强样本)")
+            
+            return X_combined, y_combined
+        else:
+            return X, y
+    
     def prepare_data(self, df):
-        """准备训练数据"""
+        """增强的数据准备流程"""
         print("\n📊 准备训练数据...")
         
         target = CONFIG['target_column']
@@ -277,7 +541,14 @@ class SimpleCoalPricePrediction:
         print(f"   • 验证集: {len(X_val)} 样本")
         print(f"   • 测试集: {len(X_test)} 样本")
         
-        # 标准化
+        # 选择scaler类型
+        scaler_type = CONFIG['scaler_type']
+        print(f"   • 使用 {scaler_type.upper()} 标准化方法")
+        
+        self.scaler_X = self.get_scaler(scaler_type)
+        self.scaler_y = self.get_scaler(scaler_type)
+        
+        # 标准化X
         X_train_flat = X_train.reshape(-1, X_train.shape[-1])
         X_train_flat = self.scaler_X.fit_transform(X_train_flat)
         X_train = X_train_flat.reshape(X_train.shape)
@@ -290,17 +561,21 @@ class SimpleCoalPricePrediction:
         X_test_flat = self.scaler_X.transform(X_test_flat)
         X_test = X_test_flat.reshape(X_test.shape)
         
+        # 标准化y
         y_train = self.scaler_y.fit_transform(y_train.reshape(-1, 1)).flatten()
         y_val = self.scaler_y.transform(y_val.reshape(-1, 1)).flatten()
         y_test = self.scaler_y.transform(y_test.reshape(-1, 1)).flatten()
+        
+        # 数据增强（仅训练集）
+        X_train, y_train = self.augment_data(X_train, y_train)
         
         print(f"✅ 数据准备完成")
         
         return X_train, y_train, X_val, y_val, X_test, y_test
     
     def train(self, X_train, y_train, X_val, y_val):
-        """训练模型"""
-        print("\n🤖 训练单层 LSTM + Attention 模型...")
+        """🔥 训练模型（激进优化版）"""
+        print("\n🤖 训练双层 LSTM + Attention 模型...")
         
         n_features = X_train.shape[2]
         
@@ -310,21 +585,50 @@ class SimpleCoalPricePrediction:
             n_features=n_features
         )
         
-        print(f"\n模型架构:")
-        print(f"   • 单层 LSTM: {CONFIG['lstm_units']} units")
+        print(f"\n模型架构（🔥 激进优化版）:")
+        lstm_units = CONFIG['lstm_units']
+        if isinstance(lstm_units, list):
+            print(f"   • LSTM层数: {CONFIG.get('num_lstm_layers', 2)}")
+            print(f"   • LSTM单元数: {lstm_units}")
+        else:
+            print(f"   • LSTM单元数: {lstm_units}")
+        print(f"   • LSTM Dropout: {CONFIG.get('lstm_dropout', 0.2)}")
+        print(f"   • LSTM Recurrent Dropout: {CONFIG.get('lstm_recurrent_dropout', 0.1)}")
         print(f"   • Attention维度: {CONFIG['attention_dim']}")
+        print(f"   • 全连接层: [{CONFIG.get('dense_units_1', 96)}, {CONFIG.get('dense_units_2', 48)}]")
+        print(f"   • Dropout率: {CONFIG['dropout_rate']}")
+        print(f"   • L2正则化: {CONFIG.get('use_l2_reg', False)}")
+        if CONFIG.get('use_l2_reg', False):
+            print(f"   • L2系数: {CONFIG.get('l2_lambda', 0.0005)}")
+        print(f"   • 学习率: {CONFIG['learning_rate']}")
+        print(f"   • 批次大小: {CONFIG['batch_size']}")
+        print(f"   • 序列长度: {CONFIG['sequence_length']}")
         print(f"   • 残差连接: 已启用")
+        if CONFIG.get('use_gradient_clip', False):
+            print(f"   • 梯度裁剪: 已启用 (clipvalue={CONFIG.get('gradient_clip_value', 1.0)})")
         self.model.summary()
         
-        # 回调函数
+        # 回调函数（优化版）
         callbacks = [
             EarlyStopping(
                 monitor='val_loss', 
-                patience=30,
+                patience=50,
                 restore_best_weights=True, 
                 verbose=1
             )
         ]
+        
+        # 添加学习率调度器
+        if CONFIG.get('use_lr_scheduler', False):
+            lr_scheduler = ReduceLROnPlateau(
+                monitor='val_loss',
+                factor=CONFIG.get('lr_factor', 0.3),
+                patience=CONFIG.get('lr_patience', 10),
+                min_lr=1e-7,
+                verbose=1
+            )
+            callbacks.append(lr_scheduler)
+            print(f"   • 学习率调度: 已启用 (patience={CONFIG.get('lr_patience', 10)}, factor={CONFIG.get('lr_factor', 0.3)})")
         
         # 训练
         self.history = self.model.fit(
@@ -568,13 +872,33 @@ class SimpleCoalPricePrediction:
             f.write("=" * 80 + "\n")
             f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             
-            f.write("📊 模型配置:\n")
+            f.write("📊 模型配置（参数优化版）:\n")
             f.write(f"   • 目标变量: {CONFIG['target_column']}\n")
             f.write(f"   • 序列长度: {CONFIG['sequence_length']}\n")
             f.write(f"   • LSTM单元数: {CONFIG['lstm_units']}\n")
+            f.write(f"   • LSTM Dropout: {CONFIG.get('lstm_dropout', 0.3)}\n")
+            f.write(f"   • LSTM Recurrent Dropout: {CONFIG.get('lstm_recurrent_dropout', 0.2)}\n")
             f.write(f"   • Attention维度: {CONFIG['attention_dim']}\n")
+            f.write(f"   • 全连接层: [{CONFIG.get('dense_units_1', 128)}, {CONFIG.get('dense_units_2', 64)}]\n")
+            f.write(f"   • Dropout率: {CONFIG['dropout_rate']}\n")
+            f.write(f"   • L2正则化: {CONFIG.get('use_l2_reg', False)}\n")
+            if CONFIG.get('use_l2_reg', False):
+                f.write(f"   • L2系数: {CONFIG.get('l2_lambda', 0.001)}\n")
             f.write(f"   • 学习率: {CONFIG['learning_rate']}\n")
-            f.write(f"   • 批次大小: {CONFIG['batch_size']}\n\n")
+            f.write(f"   • 学习率调度: {CONFIG.get('use_lr_scheduler', False)}\n")
+            if CONFIG.get('use_lr_scheduler', False):
+                f.write(f"   • LR Patience: {CONFIG.get('lr_patience', 15)}\n")
+                f.write(f"   • LR Factor: {CONFIG.get('lr_factor', 0.5)}\n")
+            f.write(f"   • 批次大小: {CONFIG['batch_size']}\n")
+            f.write(f"   • 最大Epochs: {CONFIG['epochs']}\n\n")
+            
+            f.write("🔧 数据处理配置:\n")
+            f.write(f"   • 标准化方法: {CONFIG['scaler_type']}\n")
+            f.write(f"   • 异常值移除: {CONFIG['remove_outliers']}\n")
+            f.write(f"   • 特征选择: {CONFIG['feature_selection']}\n")
+            if CONFIG['feature_selection']:
+                f.write(f"   • 保留特征数: {CONFIG['top_features']}\n")
+            f.write(f"   • 数据增强: {CONFIG['data_augmentation']}\n\n")
             
             f.write("📈 模型性能:\n")
             f.write(f"   • R² (决定系数): {results['R2']:.4f}\n")
