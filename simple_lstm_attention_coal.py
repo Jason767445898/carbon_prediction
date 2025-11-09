@@ -30,21 +30,21 @@ tf.random.set_seed(42)
 CONFIG = {
     'data_file': 'data.dta',
     'target_column': 'coal_price',
-    'sequence_length': 60,  # 🔥 增加到60以捕捉更长依赖
+    'sequence_length': 45,  # 🔥 降低序列长度减少复杂度
     'test_size': 0.2,
     'validation_size': 0.1,
-    'epochs': 300,  # 🔥 增加epoch防止早停过早
-    'batch_size': 16,  # 🔥 减小batch size增加梯度更新频率
-    'learning_rate': 0.0005,  # 🔥 降低学习率提升稳定性
-    'lstm_units': [128, 64],  # 🔥 改为双层LSTM
-    'attention_dim': 64,  # 🔥 增加attention容量
-    'lstm_dropout': 0.3,
-    'lstm_recurrent_dropout': 0.2,
-    'dropout_rate': 0.5,  # 🔥 增强正则化
-    'dense_units_1': 64,  # 🔥 增加Dense层容量
-    'dense_units_2': 32,
+    'epochs': 300,
+    'batch_size': 24,  # 🔥 增大batch size提升泛化能力
+    'learning_rate': 0.001,  # 🔥 提高学习率加快收敛
+    'lstm_units': [64, 32],  # 🔥 降低LSTM容量，减少过拟合
+    'attention_dim': 48,  # 🔥 降低attention容量
+    'lstm_dropout': 0.4,  # 🔥 增强dropout正则化
+    'lstm_recurrent_dropout': 0.3,  # 🔥 增强循环dropout
+    'dropout_rate': 0.5,
+    'dense_units_1': 48,  # 🔥 降低Dense层容量
+    'dense_units_2': 24,
     'scaler_type': 'minmax',
-    'use_residual': True,  # 🔥 新增残差连接选项
+    'use_residual': True,
 }
 
 OUTPUT_DIR = 'outputs'
@@ -93,13 +93,13 @@ def build_simple_lstm_attention(sequence_length, n_features):
     combined = layers.Add(name='residual_connection')([lstm_pooled, attention_out])
     combined = layers.LayerNormalization(epsilon=1e-6, name='layer_norm')(combined)
     
-    # 🔥 增强的Dense层
-    dense = layers.Dense(CONFIG['dense_units_1'], activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001))(combined)
+    # 🔥 增强正则化的Dense层
+    dense = layers.Dense(CONFIG['dense_units_1'], activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01))(combined)  # 🔥 增强L2正则化
     dense = layers.BatchNormalization()(dense)
     dense = layers.Dropout(CONFIG['dropout_rate'])(dense)
     
-    dense = layers.Dense(CONFIG['dense_units_2'], activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001))(dense)
-    dense = layers.Dropout(CONFIG['dropout_rate'] * 0.5)(dense)
+    dense = layers.Dense(CONFIG['dense_units_2'], activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01))(dense)  # 🔥 增强L2正则化
+    dense = layers.Dropout(CONFIG['dropout_rate'] * 0.6)(dense)  # 🔥 增加dropout
     
     outputs = layers.Dense(1)(dense)
     
@@ -137,16 +137,10 @@ class SimpleCoalPricePrediction:
             self.data.set_index('date', inplace=True)
         original_shape = self.data.shape
         
-        # 🔥 使用2017-2024年数据，仅排除最极端的价格暴涨期
-        self.data = self.data[(self.data.index.year >= 2017) & (self.data.index.year <= 2024)]
-        
-        # 仅排除最极端异常时段: 2021.10 到 2022.2（价格从800暴涨至1650的6个月）
-        exclude_start = pd.Timestamp('2021-10-01')
-        exclude_end = pd.Timestamp('2022-02-28')
-        exclude_condition = (self.data.index >= exclude_start) & (self.data.index <= exclude_end)
-        
-        # 应用排除条件
-        self.data = self.data[~exclude_condition]
+        # 🔥 仅使用2017年至2021年6月的稳定期数据
+        start_date = pd.Timestamp('2017-01-01')
+        end_date = pd.Timestamp('2021-06-30')
+        self.data = self.data[(self.data.index >= start_date) & (self.data.index <= end_date)]
         print(f"✅ 数据加载成功")
         print(f"   • 原始: {original_shape}, 筛选后: {self.data.shape}")
         print(f"   • 时间范围: {self.data.index[0]} 到 {self.data.index[-1]}")
@@ -334,10 +328,10 @@ class SimpleCoalPricePrediction:
         lstm_config = 'x'.join(map(str, CONFIG['lstm_units'])) if isinstance(CONFIG['lstm_units'], list) else str(CONFIG['lstm_units'])
         print(f"\n模型架构: LSTM=[{lstm_config}], Attention={CONFIG['attention_dim']}, Dense=[{CONFIG['dense_units_1']},{CONFIG['dense_units_2']}]")
         self.model.summary()
-        # 🔥 增强的回调函数
+        # 🔥 调整回调函数，更早停止避免过拟合
         callbacks = [
-            EarlyStopping(monitor='val_loss', patience=50, restore_best_weights=True, verbose=1, min_delta=1e-4),
-            tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=20, min_lr=1e-6, verbose=1)
+            EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True, verbose=1, min_delta=1e-4),  # 🔥 降低patience
+            tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.6, patience=10, min_lr=1e-6, verbose=1)  # 🔥 更快降低学习率
         ]
         self.history = self.model.fit(
             X_train, y_train,
