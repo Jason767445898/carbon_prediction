@@ -398,15 +398,12 @@ class CoalPriceOptimizer:
         
         self.data = self.data[(self.data.index.year >= 2017) & (self.data.index.year <= 2024)]
         
-        exclude_1_start = pd.Timestamp('2021-06-01')
-        exclude_1_end = pd.Timestamp('2022-01-31')
-        exclude_condition_1 = (self.data.index >= exclude_1_start) & (self.data.index <= exclude_1_end)
+        # 仅排除最极端异常时段: 2021.10 到 2022.2（价格暴涨期）
+        exclude_start = pd.Timestamp('2021-10-01')
+        exclude_end = pd.Timestamp('2022-02-28')
+        exclude_condition = (self.data.index >= exclude_start) & (self.data.index <= exclude_end)
         
-        exclude_2_start = pd.Timestamp('2022-03-01')
-        exclude_2_end = pd.Timestamp('2022-10-31')
-        exclude_condition_2 = (self.data.index >= exclude_2_start) & (self.data.index <= exclude_2_end)
-        
-        self.data = self.data[~(exclude_condition_1 | exclude_condition_2)]
+        self.data = self.data[~exclude_condition]
         return self.data
     
     def create_enhanced_features(self, df, target):

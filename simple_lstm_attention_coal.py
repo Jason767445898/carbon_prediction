@@ -137,21 +137,16 @@ class SimpleCoalPricePrediction:
             self.data.set_index('date', inplace=True)
         original_shape = self.data.shape
         
-        # 🔥 使用2017-2024年数据，排除特定异常时段
+        # 🔥 使用2017-2024年数据，仅排除最极端的价格暴涨期
         self.data = self.data[(self.data.index.year >= 2017) & (self.data.index.year <= 2024)]
         
-        # 排除异常时段1: 2021.6 到 2022.1
-        exclude_1_start = pd.Timestamp('2021-06-01')
-        exclude_1_end = pd.Timestamp('2022-01-31')
-        exclude_condition_1 = (self.data.index >= exclude_1_start) & (self.data.index <= exclude_1_end)
+        # 仅排除最极端异常时段: 2021.10 到 2022.2（价格从800暴涨至1650的6个月）
+        exclude_start = pd.Timestamp('2021-10-01')
+        exclude_end = pd.Timestamp('2022-02-28')
+        exclude_condition = (self.data.index >= exclude_start) & (self.data.index <= exclude_end)
         
-        # 排除异常时段2: 2022.3 到 2022.10
-        exclude_2_start = pd.Timestamp('2022-03-01')
-        exclude_2_end = pd.Timestamp('2022-10-31')
-        exclude_condition_2 = (self.data.index >= exclude_2_start) & (self.data.index <= exclude_2_end)
-        
-        # 应用排除条件（两个时段的并集）
-        self.data = self.data[~(exclude_condition_1 | exclude_condition_2)]
+        # 应用排除条件
+        self.data = self.data[~exclude_condition]
         print(f"✅ 数据加载成功")
         print(f"   • 原始: {original_shape}, 筛选后: {self.data.shape}")
         print(f"   • 时间范围: {self.data.index[0]} 到 {self.data.index[-1]}")
