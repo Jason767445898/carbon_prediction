@@ -366,14 +366,15 @@ class BaselineModels:
         """生成对比可视化"""
         print("\n🎨 生成对比可视化...")
         
-        # 1. 性能对比条形图
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+        # 1. 性能对比条形图 (增加方向准确率)
+        fig, axes = plt.subplots(2, 3, figsize=(20, 12))
         
         models = [r['model'] for r in self.results]
         r2_scores = [r['R2'] for r in self.results]
         rmse_scores = [r['RMSE'] for r in self.results]
         mae_scores = [r['MAE'] for r in self.results]
         mape_scores = [r['MAPE'] for r in self.results]
+        direction_acc_scores = [r['Direction_Accuracy'] for r in self.results]
         
         # R² Score
         axes[0, 0].barh(models, r2_scores, color='skyblue')
@@ -388,16 +389,25 @@ class BaselineModels:
         axes[0, 1].grid(axis='x', alpha=0.3)
         
         # MAE
-        axes[1, 0].barh(models, mae_scores, color='lightgreen')
-        axes[1, 0].set_xlabel('MAE', fontsize=12)
-        axes[1, 0].set_title('MAE Comparison (Lower is Better)', fontsize=14, fontweight='bold')
-        axes[1, 0].grid(axis='x', alpha=0.3)
+        axes[0, 2].barh(models, mae_scores, color='lightgreen')
+        axes[0, 2].set_xlabel('MAE', fontsize=12)
+        axes[0, 2].set_title('MAE Comparison (Lower is Better)', fontsize=14, fontweight='bold')
+        axes[0, 2].grid(axis='x', alpha=0.3)
         
         # MAPE
-        axes[1, 1].barh(models, mape_scores, color='orange')
-        axes[1, 1].set_xlabel('MAPE (%)', fontsize=12)
-        axes[1, 1].set_title('MAPE Comparison (Lower is Better)', fontsize=14, fontweight='bold')
+        axes[1, 0].barh(models, mape_scores, color='orange')
+        axes[1, 0].set_xlabel('MAPE (%)', fontsize=12)
+        axes[1, 0].set_title('MAPE Comparison (Lower is Better)', fontsize=14, fontweight='bold')
+        axes[1, 0].grid(axis='x', alpha=0.3)
+        
+        # Direction Accuracy (新增)
+        axes[1, 1].barh(models, direction_acc_scores, color='mediumpurple')
+        axes[1, 1].set_xlabel('Direction Accuracy (%)', fontsize=12)
+        axes[1, 1].set_title('Direction Accuracy Comparison', fontsize=14, fontweight='bold')
         axes[1, 1].grid(axis='x', alpha=0.3)
+        
+        # 隐藏最后一个子图
+        axes[1, 2].axis('off')
         
         plt.tight_layout()
         plt.savefig(os.path.join(OUTPUT_DIR, f'{self.run_timestamp}_comparison.png'), dpi=300)
@@ -444,14 +454,15 @@ class BaselineModels:
             f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             
             f.write("📊 模型性能排名 (按R²排序):\n")
-            f.write("-" * 100 + "\n")
-            f.write(f"{'排名':<6} {'模型':<30} {'R²':<12} {'RMSE':<12} {'MAE':<12} {'MAPE(%)':<12}\n")
-            f.write("-" * 100 + "\n")
+            f.write("-" * 120 + "\n")
+            f.write(f"{'排名':<6} {'模型':<30} {'R²':<12} {'RMSE':<12} {'MAE':<12} {'MAPE(%)':<12} {'方向准确率(%)':<15}\n")
+            f.write("-" * 120 + "\n")
             
             sorted_results = sorted(self.results, key=lambda x: x['R2'], reverse=True)
             for rank, result in enumerate(sorted_results, 1):
                 f.write(f"{rank:<6} {result['model']:<30} {result['R2']:<12.4f} "
-                       f"{result['RMSE']:<12.4f} {result['MAE']:<12.4f} {result['MAPE']:<12.2f}\n")
+                       f"{result['RMSE']:<12.4f} {result['MAE']:<12.4f} {result['MAPE']:<12.2f} "
+                       f"{result['Direction_Accuracy']:<15.2f}\n")
             
             f.write("\n" + "=" * 100 + "\n")
             f.write("📈 最佳模型: " + sorted_results[0]['model'] + "\n")
@@ -459,6 +470,7 @@ class BaselineModels:
             f.write(f"   RMSE = {sorted_results[0]['RMSE']:.4f}\n")
             f.write(f"   MAE = {sorted_results[0]['MAE']:.4f}\n")
             f.write(f"   MAPE = {sorted_results[0]['MAPE']:.2f}%\n")
+            f.write(f"   方向准确率 = {sorted_results[0]['Direction_Accuracy']:.2f}%\n")
             f.write("=" * 100 + "\n")
         
         print(f"✅ 报告已保存: {report_path}")

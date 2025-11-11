@@ -30,18 +30,18 @@ tf.random.set_seed(42)
 CONFIG = {
     'data_file': 'data.dta',
     'target_column': 'coal_price',
-    'sequence_length': 45,  # 🔥 降低序列长度减少复杂度
+    'sequence_length': 45,  # 降低序列长度减少复杂度
     'test_size': 0.2,
     'validation_size': 0.1,
     'epochs': 300,
-    'batch_size': 24,  # 🔥 增大batch size提升泛化能力
-    'learning_rate': 0.001,  # 🔥 提高学习率加快收敛
-    'lstm_units': [64, 32],  # 🔥 降低LSTM容量，减少过拟合
-    'attention_dim': 48,  # 🔥 降低attention容量
-    'lstm_dropout': 0.4,  # 🔥 增强dropout正则化
-    'lstm_recurrent_dropout': 0.3,  # 🔥 增强循环dropout
+    'batch_size': 24,  # 增大batch size提升泛化能力
+    'learning_rate': 0.001,  # 提高学习率加快收敛
+    'lstm_units': [64, 32],  # 降低LSTM容量，减少过拟合
+    'attention_dim': 48,  # 降低attention容量
+    'lstm_dropout': 0.4,  # 增强dropout正则化
+    'lstm_recurrent_dropout': 0.3,  # 增强循环dropout
     'dropout_rate': 0.5,
-    'dense_units_1': 48,  # 🔥 降低Dense层容量
+    'dense_units_1': 48,  # 降低Dense层容量
     'dense_units_2': 24,
     'scaler_type': 'minmax',
     'use_residual': True,
@@ -65,7 +65,7 @@ def create_simple_attention(input_tensor, attention_dim):
 def build_simple_lstm_attention(sequence_length, n_features):
     inputs = layers.Input(shape=(sequence_length, n_features))
     
-    # 🔥 多层LSTM架构
+    # 多层LSTM架构
     lstm_units_list = CONFIG['lstm_units'] if isinstance(CONFIG['lstm_units'], list) else [CONFIG['lstm_units']]
     x = inputs
     
@@ -73,7 +73,7 @@ def build_simple_lstm_attention(sequence_length, n_features):
         return_seq = (i < len(lstm_units_list) - 1)  # 最后一层不返回序列
         x = layers.LSTM(
             units,
-            return_sequences=True,  # 🔥 所有层都返回序列用于Attention
+            return_sequences=True,  # 所有层都返回序列用于Attention
             dropout=CONFIG['lstm_dropout'],
             recurrent_dropout=CONFIG['lstm_recurrent_dropout'],
             name=f'lstm_layer_{i+1}'
@@ -85,7 +85,7 @@ def build_simple_lstm_attention(sequence_length, n_features):
     # Attention机制
     attention_out = create_simple_attention(lstm_out, CONFIG['attention_dim'])
     
-    # 🔥 残差连接优化
+    # 残差连接优化
     lstm_pooled = layers.GlobalAveragePooling1D(name='lstm_pooling')(lstm_out)
     if lstm_pooled.shape[-1] != CONFIG['attention_dim']:
         lstm_pooled = layers.Dense(CONFIG['attention_dim'], name='residual_projection')(lstm_pooled)
@@ -93,21 +93,21 @@ def build_simple_lstm_attention(sequence_length, n_features):
     combined = layers.Add(name='residual_connection')([lstm_pooled, attention_out])
     combined = layers.LayerNormalization(epsilon=1e-6, name='layer_norm')(combined)
     
-    # 🔥 增强正则化的Dense层
-    dense = layers.Dense(CONFIG['dense_units_1'], activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01))(combined)  # 🔥 增强L2正则化
+    # 增强正则化的Dense层
+    dense = layers.Dense(CONFIG['dense_units_1'], activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01))(combined)  # 增强L2正则化
     dense = layers.BatchNormalization()(dense)
     dense = layers.Dropout(CONFIG['dropout_rate'])(dense)
     
-    dense = layers.Dense(CONFIG['dense_units_2'], activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01))(dense)  # 🔥 增强L2正则化
-    dense = layers.Dropout(CONFIG['dropout_rate'] * 0.6)(dense)  # 🔥 增加dropout
+    dense = layers.Dense(CONFIG['dense_units_2'], activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01))(dense)  # 增强L2正则化
+    dense = layers.Dropout(CONFIG['dropout_rate'] * 0.6)(dense)  # 增加dropout
     
     outputs = layers.Dense(1)(dense)
     
     model = Model(inputs=inputs, outputs=outputs)
     
-    # 🔥 使用固定学习率，配合ReduceLROnPlateau动态调整
+    # 使用固定学习率，配合ReduceLROnPlateau动态调整
     model.compile(
-        optimizer=Adam(learning_rate=CONFIG['learning_rate'], clipnorm=1.0),  # 🔥 梯度裁剪
+        optimizer=Adam(learning_rate=CONFIG['learning_rate'], clipnorm=1.0),  # 梯度裁剪
         loss='mse',
         metrics=['mae']
     )
@@ -137,7 +137,7 @@ class SimpleCoalPricePrediction:
             self.data.set_index('date', inplace=True)
         original_shape = self.data.shape
         
-        # 🔥 仅使用2017年至2021年6月的稳定期数据
+        # 仅使用2017年至2021年6月的稳定期数据
         start_date = pd.Timestamp('2017-01-01')
         end_date = pd.Timestamp('2021-06-30')
         self.data = self.data[(self.data.index >= start_date) & (self.data.index <= end_date)]
@@ -148,7 +148,7 @@ class SimpleCoalPricePrediction:
     
     def create_enhanced_features(self, df, target):
         print("   • 创建特征...")
-        # 🔥 保留 oil_price 和 log_carbon_price 相关特征
+        # 保留 oil_price 和 log_carbon_price 相关特征
         original_features = [
             'oil_price',
             'log_oil_price',
@@ -159,7 +159,7 @@ class SimpleCoalPricePrediction:
         print(f"      ✅ 找到 {len(available_features)} 个原始特征")
         df = df[[target] + available_features]
         
-        # 🔥 为 coal_price 添加技术指标
+        # 为 coal_price 添加技术指标
         print("      • 添加coal_price技术指标...")
         
         # MA - 移动平均 (2, 5, 10日)
@@ -328,10 +328,10 @@ class SimpleCoalPricePrediction:
         lstm_config = 'x'.join(map(str, CONFIG['lstm_units'])) if isinstance(CONFIG['lstm_units'], list) else str(CONFIG['lstm_units'])
         print(f"\n模型架构: LSTM=[{lstm_config}], Attention={CONFIG['attention_dim']}, Dense=[{CONFIG['dense_units_1']},{CONFIG['dense_units_2']}]")
         self.model.summary()
-        # 🔥 调整回调函数，更早停止避免过拟合
+        # 调整回调函数，更早停止避免过拟合
         callbacks = [
-            EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True, verbose=1, min_delta=1e-4),  # 🔥 降低patience
-            tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.6, patience=10, min_lr=1e-6, verbose=1)  # 🔥 更快降低学习率
+            EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True, verbose=1, min_delta=1e-4),  # 降低patience
+            tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.6, patience=10, min_lr=1e-6, verbose=1)  # 更快降低学习率
         ]
         self.history = self.model.fit(
             X_train, y_train,
